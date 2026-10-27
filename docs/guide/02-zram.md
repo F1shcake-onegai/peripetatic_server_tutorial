@@ -1,0 +1,1 @@
+# 2. Configure zram

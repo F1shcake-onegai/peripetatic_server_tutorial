@@ -1,0 +1,9 @@
+# Claude Code
+.claude/
+CLAUDE.md
+CLAUDE.local.md
+
+# MkDocs
+site/
+.venv/
+__pycache__/

@@ -1,0 +1,58 @@
+site_name: Peripatetic Server Tutorial
+# site_url: https://<user>.github.io/peripatetic_server_tutorial/
+# repo_url: https://github.com/<user>/peripatetic_server_tutorial
+
+theme:
+  name: material
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.footer
+    - navigation.top
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.keys
+
+nav:
+  - Home: index.md
+  - Guide:
+      - 0. Hardware Preparation: guide/00-hardware.md
+      - 1. Set Up Raspberry Pi OS: guide/01-raspberry-pi-os.md
+      - 2. Configure zram: guide/02-zram.md
+      - 3. Install Mesh Network Configurator: guide/03-mesh-vpn.md
+      - 4. Create a Second Network Interface (Optional): guide/04-second-interface.md
