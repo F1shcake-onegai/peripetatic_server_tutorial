@@ -1,4 +1,4 @@
-# 2. Configure zram
+# 3. Configure zram
 
 Since Raspberry Pi OS Trixie (released 2 October 2025), zram is built in. The `rpi-swap` package sets up compressed swap on `/dev/zram0` automatically at boot.[^1]<br>
 The `zram-tools` method sets up its own zram swap and conflicts with `rpi-swap`. Instead, configure zram with a drop-in file as shown below.
