@@ -33,6 +33,7 @@ theme:
 
 markdown_extensions:
   - admonition
+  - footnotes
   - attr_list
   - md_in_html
   - tables
@@ -47,6 +48,9 @@ markdown_extensions:
   - pymdownx.tabbed:
       alternate_style: true
   - pymdownx.keys
+
+hooks:
+  - hooks/references.py
 
 nav:
   - Home: index.md

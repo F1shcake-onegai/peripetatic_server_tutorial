@@ -2,7 +2,7 @@
 
 === "Using Raspberry Pi Imager"
 
-    **Step 1: Install Raspberry Pi Imager**
+    **Step 1: Install Raspberry Pi Imager**[^1]
 
     Download the installer for your computer's OS from <https://www.raspberrypi.com/software/>.
 
@@ -75,3 +75,5 @@
 === "Using Rufus (Windows)"
 
 === "Using dd (Linux / macOS)"
+
+[^1]: <https://www.raspberrypi.com/documentation/computers/getting-started.html>
