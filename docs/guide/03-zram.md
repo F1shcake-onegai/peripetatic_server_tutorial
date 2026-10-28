@@ -3,7 +3,7 @@
 Since Raspberry Pi OS Trixie (released 2 October 2025), zram is built in. The `rpi-swap` package sets up compressed swap on `/dev/zram0` automatically at boot.[^1]<br>
 The `zram-tools` method sets up its own zram swap and conflicts with `rpi-swap`. Instead, configure zram with a drop-in file as shown below.
 
-**Step 0: Remove zram-tools (optional)**
+## Remove zram-tools (optional) { .step-0 }
 
 If you tried installing `zram-tools`, run:
 
@@ -11,11 +11,9 @@ If you tried installing `zram-tools`, run:
 sudo apt purge zram-tools
 ```
 
-Then delete the `zram-tools` configuration files.
-
 ## Drop-in file structure
 
-`rpi-swap` reads its defaults from `/etc/rpi/swap.conf`. To avoid being overridden and accidentally breaking setups, create a drop-in file in `/etc/rpi/swap.conf.d/` instead of editing the main file. Drop-ins override the main file and are read in filename order. If more than one drop-in sets the same property, the file read last takes precedence. The `90-` prefix makes `90-local.conf` load after lower-numbered files.[^2]
+`rpi-swap` reads its defaults from `/etc/rpi/swap.conf`. To avoid your changes being overridden and accidentally breaking setups, create a drop-in file in `/etc/rpi/swap.conf.d/` instead of editing the main file. Drop-ins override the main file and are read in filename order. If more than one drop-in sets the same property, the file read last takes precedence. The `90-` prefix makes `90-local.conf` load after lower-numbered files.[^2]
 
 A drop-in has up to three sections. Include only the sections and properties you want to change; everything else keeps its default.
 
@@ -30,13 +28,13 @@ FixedSizeMiB=...
 FixedSizeMiB=...
 ```
 
-**[Main]**
+### [Main]
 
 | Property | Values | Default | Meaning |
 |----------|--------|---------|---------|
 | `Mechanism` | `auto`, `swapfile`, `zram`, `zram+file`, `none` | `auto` | Which kind of swap to use. `auto` lets `rpi-swap` choose. `zram+file` uses compressed RAM and writes idle pages to a file on disk. `zram` uses RAM only. `swapfile` is a traditional swap file. `none` disables swap. |
 
-**[Zram]**
+### [Zram]
 
 | Property | Default | Meaning |
 |----------|---------|---------|
@@ -47,7 +45,7 @@ FixedSizeMiB=...
 | `WritebackInitialDelay` | `180min` | Wait after boot before the first writeback |
 | `WritebackPeriodicInterval` | `24h` | Time between writebacks |
 
-**[File]**
+### [File]
 
 The file at `/var/swap` stores the idle pages that zram writes back.
 
@@ -86,7 +84,7 @@ free -h
 !!! warning
     Values above 2× your RAM are not recommended, because poorly compressible data could then fill all of your memory.[^2] This will thrash the system instead of benefiting it.
 
-**Step 1: Create the drop-in**
+## Create the drop-in { .step }
 
 The example below is for an 8 GB Pi. Replace `8192` with the value for your Pi from the table above, and replace the parameters with those of your choice.
 
@@ -117,13 +115,13 @@ FixedSizeMiB=8192
 FixedSizeMiB=4096
 ```
 
-**Step 2: Reload system service**
+## Reload system service { .step }
 
 ```bash
 sudo systemctl daemon-reload
 ```
 
-**Step 3: Verify the configuration**
+## Verify the configuration { .step }
 
 After reloading, run:
 
@@ -137,7 +135,7 @@ You should see `/dev/zram0` using `zstd`, with `DISKSIZE` matching the size you 
 ??? info "Advanced: Kernel parameters to make better use of zram"
     The Linux kernel can be tuned and tweaked to make better use of zram.[^5]
 
-    **Kernel parameters**[^4]
+    ### Kernel parameters[^4]
 
     | Parameter | Default | Meaning |
     |-----------|---------|---------|
@@ -158,7 +156,7 @@ You should see `/dev/zram0` using `zstd`, with `DISKSIZE` matching the size you 
     !!! note
         Debian 13 (and Raspberry Pi OS Trixie) no longer reads `/etc/sysctl.conf`. Put kernel parameters in a file under `/etc/sysctl.d/` instead.[^3]
 
-    **Step 1: Create the configuration file**
+    ### Create the configuration file { .step }
 
     Create `/etc/sysctl.d/99-zram.conf` with `sudo nano /etc/sysctl.d/99-zram.conf` and add these lines:
 
@@ -172,13 +170,19 @@ You should see `/dev/zram0` using `zstd`, with `DISKSIZE` matching the size you 
     vm.page-cluster = 0
     ```
 
-    **Step 2: Apply the parameters**
+    ### Apply the parameters { .step }
 
     Reboot your system, or enable the new parameters with:
 
     ```bash
     sudo sysctl --system
     ```
+
+## Next
+
+Continue with the track for your setup:
+
+[Student Kit](04-second-interface.md){ .md-button } [School Server](04-ai-hat.md){ .md-button }
 
 [^1]: <https://github.com/raspberrypi/rpi-swap>
 [^2]: `man swap.conf`, also at <https://github.com/raspberrypi/rpi-swap/blob/main/man/man5/swap.conf.5>

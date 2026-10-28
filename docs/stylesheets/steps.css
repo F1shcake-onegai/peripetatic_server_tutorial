@@ -1,0 +1,32 @@
+/* Number headings marked { .step } in order.
+   Headings in tabs that aren't selected are hidden and not counted, so
+   steps after a set of tabs continue from the selected tab. */
+.md-typeset {
+  counter-reset: step;
+}
+
+.md-typeset .step {
+  counter-increment: step;
+}
+
+.md-typeset .step::before {
+  content: "Step " counter(step) ": ";
+}
+
+/* Steps inside a collapsible box are numbered on their own. */
+.md-typeset details {
+  counter-reset: substep;
+}
+
+.md-typeset details .step {
+  counter-increment: substep;
+}
+
+.md-typeset details .step::before {
+  content: "Step " counter(substep) ": ";
+}
+
+/* A heading marked { .step-0 } is always Step 0 and doesn't change the count. */
+.md-typeset .step-0::before {
+  content: "Step 0: ";
+}

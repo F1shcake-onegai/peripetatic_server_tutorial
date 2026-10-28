@@ -1,6 +1,6 @@
 # 2. Update and Upgrade
 
-**Step 1: Update the package list**
+## Update the package list { .step }
 
 ```bash
 sudo apt update
@@ -8,7 +8,7 @@ sudo apt update
 
 This downloads the latest list of available packages and versions. It doesn't install anything yet.
 
-**Step 2: Upgrade the installed packages**
+## Upgrade the installed packages { .step }
 
 ```bash
 sudo apt full-upgrade
@@ -29,7 +29,7 @@ When prompted `Do you want to continue? [Y/n]`, press ++y++ and then ++enter++. 
     sudo apt clean
     ```
 
-**Step 3: Reboot**
+## Reboot { .step }
 
 ```bash
 sudo reboot

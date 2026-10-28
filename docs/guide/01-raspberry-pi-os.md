@@ -2,7 +2,7 @@
 
 === "Using Raspberry Pi Imager"
 
-    **Step 1: Install Raspberry Pi Imager**[^1]
+    ## Install Raspberry Pi Imager[^1] { .step }
 
     Download the installer for your computer's OS from <https://www.raspberrypi.com/software/>.
 
@@ -15,17 +15,17 @@
         ./imager_*_amd64.AppImage
         ```
 
-    **Step 2: Insert the microSD card**
+    ## Insert the microSD card { .step }
 
     Insert the microSD card into your computer's card slot, or into a USB card reader connected to the computer.
 
-    **Step 3: Launch Raspberry Pi Imager**
+    ## Launch Raspberry Pi Imager { .step }
 
-    **Step 4: Select the device**
+    ## Select the device { .step }
 
     On the **Device** tab, select your Raspberry Pi model, then select **Next**.
 
-    **Step 5: Select the operating system**
+    ## Select the operating system { .step }
 
     On the **OS** tab, select the operating system, then select **Next**.
 
@@ -36,11 +36,11 @@
 
         For other devices, choose the one with the corresponding architecture.
 
-    **Step 6: Select the storage**
+    ## Select the storage { .step }
 
     On the **Storage** tab, select the microSD card, then select **Next**. Identify the card by its size, and keep **Exclude system drives** turned on to avoid erasing your computer's own drive by mistake.
 
-    **Step 7: Customize the OS (recommended)**
+    ## Customize the OS (recommended) { .step }
 
     This step is recommended to skip first-time customization during boot. It is a necessary step if you wish to use this Raspberry Pi headless without peripherals.
 
@@ -62,13 +62,13 @@
 
     - **Remote Access:** turn on **Enable SSH**, then choose password authentication or public key authentication. For a public key, paste it in or select **Browse** to find the key file.
 
-    **Step 8: Write the image and validate**
+    ## Write the image and validate { .step }
 
     After all settings are configured, you can review a summary of your choices in the **Writing** tab. If this information is correct, select **Write** in the bottom-right corner of Imager. When Imager warns that all data on the card will be erased, select **I understand, erase and write**. If you see a prompt asking for administrator permission, grant the permissions to proceed.
 
     This process will take a few minutes based on the speed of the card reader you are using.
 
-    **Step 9: Finish**
+    ## Finish { .step }
 
     When the **Done** tab appears, select **Finish** and remove the microSD card.
 
