@@ -1,0 +1,1457 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../02-update/">
+      
+      
+        <link rel="next" href="../04-second-interface/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+    
+    
+      
+        <title>3. Configure zram - Peripatetic Server Tutorial</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/steps.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#3-configure-zram" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Peripatetic Server Tutorial" class="md-header__button md-logo" aria-label="Peripatetic Server Tutorial" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Peripatetic Server Tutorial
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              3. Configure zram
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Peripatetic Server Tutorial" class="md-nav__button md-logo" aria-label="Peripatetic Server Tutorial" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Peripatetic Server Tutorial
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    General
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    General
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../00-hardware/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0. Hardware Preparation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../01-raspberry-pi-os/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1. Set Up Raspberry Pi OS
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../02-update/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2. Update and Upgrade
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3. Configure zram
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3. Configure zram
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#remove-zram-tools-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Remove zram-tools (optional)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#drop-in-file-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Drop-in file structure
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Drop-in file structure">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#main" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [Main]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#zram" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [Zram]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [File]
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#choosing-a-size" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choosing a size
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#create-the-drop-in" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Create the drop-in
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reload-system-service" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reload system service
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verify-the-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verify the configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Verify the configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#kernel-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kernel parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#create-the-configuration-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Create the configuration file
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#apply-the-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Apply the parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Student Kit
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Student Kit
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../04-second-interface/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    4. Create a Second Network Interface (Optional)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../05-mesh-vpn/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    5. Install Mesh Network Configurator
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    School Server
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    School Server
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../04-ai-hat/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    4. AI HAT Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../05-reverse-proxy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    5. Reverse Proxy Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#remove-zram-tools-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Remove zram-tools (optional)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#drop-in-file-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Drop-in file structure
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Drop-in file structure">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#main" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [Main]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#zram" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [Zram]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [File]
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#choosing-a-size" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choosing a size
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#create-the-drop-in" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Create the drop-in
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reload-system-service" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reload system service
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verify-the-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verify the configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Verify the configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#kernel-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kernel parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#create-the-configuration-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Create the configuration file
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#apply-the-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Apply the parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="3-configure-zram">3. Configure zram<a class="headerlink" href="#3-configure-zram" title="Permanent link">&para;</a></h1>
+<p>Since Raspberry Pi OS Trixie (released 2 October 2025), zram is built in. The <code>rpi-swap</code> package sets up compressed swap on <code>/dev/zram0</code> automatically at boot.<sup id="fnref:1"><a class="footnote-ref" href="#fn:1">1</a></sup><br>
+The <code>zram-tools</code> method sets up its own zram swap and conflicts with <code>rpi-swap</code>. Instead, configure zram with a drop-in file as shown below.</p>
+<h2 class="step-0" id="remove-zram-tools-optional">Remove zram-tools (optional)<a class="headerlink" href="#remove-zram-tools-optional" title="Permanent link">&para;</a></h2>
+<p>If you tried installing <code>zram-tools</code>, run:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>sudo<span class="w"> </span>apt<span class="w"> </span>purge<span class="w"> </span>zram-tools
+</code></pre></div>
+<h2 id="drop-in-file-structure">Drop-in file structure<a class="headerlink" href="#drop-in-file-structure" title="Permanent link">&para;</a></h2>
+<p><code>rpi-swap</code> reads its defaults from <code>/etc/rpi/swap.conf</code>. To avoid your changes being overridden and accidentally breaking setups, create a drop-in file in <code>/etc/rpi/swap.conf.d/</code> instead of editing the main file. Drop-ins override the main file and are read in filename order. If more than one drop-in sets the same property, the file read last takes precedence. The <code>90-</code> prefix makes <code>90-local.conf</code> load after lower-numbered files.<sup id="fnref:2"><a class="footnote-ref" href="#fn:2">2</a></sup></p>
+<p>A drop-in has up to three sections. Include only the sections and properties you want to change; everything else keeps its default.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">[Main]</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="na">Mechanism</span><span class="o">=</span><span class="s">...</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="k">[Zram]</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="na">FixedSizeMiB</span><span class="o">=</span><span class="s">...</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="k">[File]</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="na">FixedSizeMiB</span><span class="o">=</span><span class="s">...</span>
+</code></pre></div>
+<h3 id="main">[Main]<a class="headerlink" href="#main" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Values</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Mechanism</code></td>
+<td><code>auto</code>, <code>swapfile</code>, <code>zram</code>, <code>zram+file</code>, <code>none</code></td>
+<td><code>auto</code></td>
+<td>Which kind of swap to use. <code>auto</code> lets <code>rpi-swap</code> choose. <code>zram+file</code> uses compressed RAM and writes idle pages to a file on disk. <code>zram</code> uses RAM only. <code>swapfile</code> is a traditional swap file. <code>none</code> disables swap.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="zram">[Zram]<a class="headerlink" href="#zram" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>RamMultiplier</code></td>
+<td><code>1</code></td>
+<td>zram capacity as a multiple of your RAM. <code>1</code> means a capacity equal to your RAM.</td>
+</tr>
+<tr>
+<td><code>MaxSizeMiB</code></td>
+<td><code>2048</code></td>
+<td>Upper limit on the size that <code>RamMultiplier</code> calculates</td>
+</tr>
+<tr>
+<td><code>FixedSizeMiB</code></td>
+<td><em>(unset)</em></td>
+<td>Exact capacity in MiB. Overrides <code>RamMultiplier</code> and <code>MaxSizeMiB</code>.</td>
+</tr>
+<tr>
+<td><code>WritebackTrigger</code></td>
+<td><code>auto</code></td>
+<td>How idle pages are moved to the file: <code>timer</code>, <code>manual</code> or <code>auto</code>. <code>auto</code> lets <code>rpi-swap</code> choose.</td>
+</tr>
+<tr>
+<td><code>WritebackInitialDelay</code></td>
+<td><code>180min</code></td>
+<td>Wait after boot before the first writeback</td>
+</tr>
+<tr>
+<td><code>WritebackPeriodicInterval</code></td>
+<td><code>24h</code></td>
+<td>Time between writebacks</td>
+</tr>
+</tbody>
+</table>
+<h3 id="file">[File]<a class="headerlink" href="#file" title="Permanent link">&para;</a></h3>
+<p>The file at <code>/var/swap</code> stores the idle pages that zram writes back.</p>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Path</code></td>
+<td><code>/var/swap</code></td>
+<td>Location of the file</td>
+</tr>
+<tr>
+<td><code>RamMultiplier</code></td>
+<td><code>1</code></td>
+<td>File size as a multiple of your RAM</td>
+</tr>
+<tr>
+<td><code>MaxSizeMiB</code></td>
+<td><code>2048</code></td>
+<td>Upper limit on the file size</td>
+</tr>
+<tr>
+<td><code>MaxDiskPercent</code></td>
+<td><code>50</code></td>
+<td>Upper limit as a percentage of available disk space</td>
+</tr>
+<tr>
+<td><code>FixedSizeMiB</code></td>
+<td><em>(unset)</em></td>
+<td>Exact file size in MiB. Overrides the settings above.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="choosing-a-size">Choosing a size<a class="headerlink" href="#choosing-a-size" title="Permanent link">&para;</a></h2>
+<p><code>FixedSizeMiB</code> is how much data zram can hold <strong>before</strong> compression. Because zram compresses that data 2–3×, a full zram uses much less real RAM:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>Real RAM used when full ≈ FixedSizeMiB ÷ 2 to 3
+</code></pre></div>
+<p>For example, a full 8192 MiB (8 GB) zram uses about 8 ÷ 3 to 8 ÷ 2 ≈ 2.7–4 GB of real RAM.</p>
+<p>This is a chart of suggested zram size versus real RAM used when full. You can check your physical RAM size with:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>free<span class="w"> </span>-h
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Pi RAM</th>
+<th>Suggested <code>FixedSizeMiB</code> (1× RAM)</th>
+<th>Real RAM used when full</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1 GB</td>
+<td><code>1024</code></td>
+<td>about 0.3–0.5 GB</td>
+</tr>
+<tr>
+<td>2 GB</td>
+<td><code>2048</code></td>
+<td>about 0.7–1 GB</td>
+</tr>
+<tr>
+<td>4 GB</td>
+<td><code>4096</code></td>
+<td>about 1.3–2 GB</td>
+</tr>
+<tr>
+<td>8 GB</td>
+<td><code>8192</code></td>
+<td>about 2.7–4 GB</td>
+</tr>
+<tr>
+<td>16 GB</td>
+<td><code>16384</code></td>
+<td>about 5.3–8 GB</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Values above 2× your RAM are not recommended, because poorly compressible data could then fill all of your memory.<sup id="fnref2:2"><a class="footnote-ref" href="#fn:2">2</a></sup> This will thrash the system instead of benefiting it.</p>
+</div>
+<h2 class="step" id="create-the-drop-in">Create the drop-in<a class="headerlink" href="#create-the-drop-in" title="Permanent link">&para;</a></h2>
+<p>The example below is for an 8 GB Pi. Replace <code>8192</code> with the value for your Pi from the table above, and replace the parameters with those of your choice.</p>
+<p>Create the directory and open the drop-in in nano:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>sudo<span class="w"> </span>mkdir<span class="w"> </span>-p<span class="w"> </span>/etc/rpi/swap.conf.d
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>sudo<span class="w"> </span>nano<span class="w"> </span>/etc/rpi/swap.conf.d/90-local.conf
+</code></pre></div>
+<div class="admonition tip">
+<p class="admonition-title">Using nano</p>
+<p>nano is a simple text editor that runs in the terminal. Type or paste the text, then press <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-o">O</kbd></span> and <span class="keys"><kbd class="key-enter">Enter</kbd></span> to save, and <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-x">X</kbd></span> to exit.</p>
+</div>
+<p>Add these lines:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">[Main]</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="na">Mechanism</span><span class="o">=</span><span class="s">zram+file</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="k">[Zram]</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="na">FixedSizeMiB</span><span class="o">=</span><span class="s">8192</span>
+</code></pre></div>
+<p>(Optional) To make the file at <code>/var/swap</code> larger than its 2 GB default, add a <code>[File]</code> section with its own <code>FixedSizeMiB</code> to the same file, for example:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">[File]</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="na">FixedSizeMiB</span><span class="o">=</span><span class="s">4096</span>
+</code></pre></div>
+<h2 class="step" id="reload-system-service">Reload system service<a class="headerlink" href="#reload-system-service" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>sudo<span class="w"> </span>systemctl<span class="w"> </span>daemon-reload
+</code></pre></div>
+<h2 class="step" id="verify-the-configuration">Verify the configuration<a class="headerlink" href="#verify-the-configuration" title="Permanent link">&para;</a></h2>
+<p>After reloading, run:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>zramctl
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>swapon<span class="w"> </span>--show
+</code></pre></div>
+<p>You should see <code>/dev/zram0</code> using <code>zstd</code>, with <code>DISKSIZE</code> matching the size you set (<code>8G</code> in the example above). You don't need to set <code>zstd</code> anywhere: it's already in use, and <code>rpi-swap</code> has no setting for the algorithm.</p>
+<details class="info">
+<summary>Advanced: Kernel parameters to make better use of zram</summary>
+<p>The Linux kernel can be tuned and tweaked to make better use of zram.<sup id="fnref:5"><a class="footnote-ref" href="#fn:5">5</a></sup></p>
+<h3 id="kernel-parameters">Kernel parameters<sup id="fnref:4"><a class="footnote-ref" href="#fn:4">4</a></sup><a class="headerlink" href="#kernel-parameters" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>vm.swappiness</code></td>
+<td><code>60</code></td>
+<td>The relative I/O cost of swapping compared with dropping file cache, from <code>0</code> to <code>200</code>. At <code>100</code>, both are treated as equally costly. Higher values make the kernel prefer swapping. For in-memory swap such as zram, values above <code>100</code> can be considered.</td>
+</tr>
+<tr>
+<td><code>vm.page-cluster</code></td>
+<td><code>3</code></td>
+<td>How many consecutive pages are read from swap at once, as a power of 2 (<code>3</code> = 8 pages). <code>0</code> reads one page at a time, which disables swap readahead and lowers latency. <code>rpi-swap</code> already sets this to <code>0</code>.</td>
+</tr>
+<tr>
+<td><code>vm.vfs_cache_pressure</code></td>
+<td><code>100</code></td>
+<td>How readily the kernel reclaims memory used to cache directory and inode objects. Higher values reclaim it sooner; lower values keep it longer. <code>0</code> never reclaims it and can easily lead to out-of-memory conditions. Values significantly above <code>100</code> may hurt performance.</td>
+</tr>
+<tr>
+<td><code>vm.dirty_background_ratio</code></td>
+<td><code>10</code></td>
+<td>The percentage of available memory that can hold "dirty" pages (modified data not yet written to disk) before background threads start writing them to disk.</td>
+</tr>
+<tr>
+<td><code>vm.dirty_ratio</code></td>
+<td><code>20</code></td>
+<td>The percentage of available memory that can hold dirty pages before a process that is writing to disk must write them out itself.</td>
+</tr>
+<tr>
+<td><code>vm.watermark_boost_factor</code></td>
+<td><code>15000</code></td>
+<td>How much extra memory the kernel reclaims when memory becomes fragmented, in units of 1/10,000 of the high watermark (<code>15000</code> = 150%). <code>0</code> disables this.</td>
+</tr>
+<tr>
+<td><code>vm.watermark_scale_factor</code></td>
+<td><code>10</code></td>
+<td>How early the background reclaim thread (<code>kswapd</code>) wakes up, in units of 1/10,000 of memory (<code>10</code> = 0.1%). The maximum is <code>3000</code> (30%). Higher values start reclaiming earlier.</td>
+</tr>
+</tbody>
+</table>
+<p>To check a value on your Pi, run <code>sysctl</code> with the parameter name, for example:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>sysctl<span class="w"> </span>vm.swappiness
+</code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Debian 13 (and Raspberry Pi OS Trixie) no longer reads <code>/etc/sysctl.conf</code>. Put kernel parameters in a file under <code>/etc/sysctl.d/</code> instead.<sup id="fnref:3"><a class="footnote-ref" href="#fn:3">3</a></sup></p>
+</div>
+<h3 class="step" id="create-the-configuration-file">Create the configuration file<a class="headerlink" href="#create-the-configuration-file" title="Permanent link">&para;</a></h3>
+<p>Create <code>/etc/sysctl.d/99-zram.conf</code> with <code>sudo nano /etc/sysctl.d/99-zram.conf</code> and add these lines:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="na">vm.vfs_cache_pressure</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">500</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="na">vm.swappiness</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">100</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="na">vm.dirty_background_ratio</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">1</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="na">vm.dirty_ratio</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">50</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="na">vm.watermark_boost_factor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">0</span>
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="na">vm.watermark_scale_factor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">125</span>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="na">vm.page-cluster</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">0</span>
+</code></pre></div>
+<h3 class="step" id="apply-the-parameters">Apply the parameters<a class="headerlink" href="#apply-the-parameters" title="Permanent link">&para;</a></h3>
+<p>Reboot your system, or enable the new parameters with:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>sudo<span class="w"> </span>sysctl<span class="w"> </span>--system
+</code></pre></div>
+</details>
+<h2 id="next">Next<a class="headerlink" href="#next" title="Permanent link">&para;</a></h2>
+<p>Continue with the track for your setup:</p>
+<p><a class="md-button" href="../04-second-interface/">Student Kit</a> <a class="md-button" href="../04-ai-hat/">School Server</a></p>
+<h2 id="reference">Reference</h2>
+<div class="footnote">
+<ol>
+<li id="fn:1">
+<p><a href="https://github.com/raspberrypi/rpi-swap">https://github.com/raspberrypi/rpi-swap</a>&#160;<a class="footnote-backref" href="#fnref:1" title="Jump back to footnote 1 in the text">&#8617;</a></p>
+</li>
+<li id="fn:2">
+<p><code>man swap.conf</code>, also at <a href="https://github.com/raspberrypi/rpi-swap/blob/main/man/man5/swap.conf.5">https://github.com/raspberrypi/rpi-swap/blob/main/man/man5/swap.conf.5</a>&#160;<a class="footnote-backref" href="#fnref:2" title="Jump back to footnote 2 in the text">&#8617;</a><a class="footnote-backref" href="#fnref2:2" title="Jump back to footnote 2 in the text">&#8617;</a></p>
+</li>
+<li id="fn:3">
+<p><a href="https://www.debian.org/releases/trixie/release-notes/issues.en.html#etc-sysctl-conf-is-no-longer-honored">https://www.debian.org/releases/trixie/release-notes/issues.en.html#etc-sysctl-conf-is-no-longer-honored</a>&#160;<a class="footnote-backref" href="#fnref:3" title="Jump back to footnote 3 in the text">&#8617;</a></p>
+</li>
+<li id="fn:4">
+<p><a href="https://www.kernel.org/doc/html/v6.12/admin-guide/sysctl/vm.html">https://www.kernel.org/doc/html/v6.12/admin-guide/sysctl/vm.html</a>&#160;<a class="footnote-backref" href="#fnref:4" title="Jump back to footnote 4 in the text">&#8617;</a></p>
+</li>
+<li id="fn:5">
+<p><a href="https://github.com/garyexplains/examples/blob/master/how_to_enable_ZRAM_Raspberry_Pi.md">https://github.com/garyexplains/examples/blob/master/how_to_enable_ZRAM_Raspberry_Pi.md</a>&#160;<a class="footnote-backref" href="#fnref:5" title="Jump back to footnote 5 in the text">&#8617;</a></p>
+</li>
+</ol>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../02-update/" class="md-footer__link md-footer__link--prev" aria-label="Previous: 2. Update and Upgrade">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                2. Update and Upgrade
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../04-second-interface/" class="md-footer__link md-footer__link--next" aria-label="Next: 4. Create a Second Network Interface (Optional)">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                4. Create a Second Network Interface (Optional)
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.sections", "navigation.footer", "navigation.top", "search.highlight", "search.suggest", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
+      
+    
+  </body>
+</html>
