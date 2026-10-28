@@ -15,6 +15,9 @@ Everyone starts with the general chapters 0–3, then continues with the track f
 
 - [4. Create a Second Network Interface (Optional)](guide/04-second-interface.md)
 - [5. Install Mesh Network Configurator](guide/05-mesh-vpn.md)
+- [6. Install GPIO Modules and Scripts](guide/06-gpio.md)
+- [7-a. Download Website Files (Static)](guide/07-website-files.md)
+- [7-b. Prepare Website Files (Dynamic)](guide/07-website-files-dynamic.md)
 
 ### School Server
 
