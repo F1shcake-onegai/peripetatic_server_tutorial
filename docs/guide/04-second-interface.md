@@ -62,6 +62,19 @@ A second network interface lets the Pi connect to two networks at once: the mesh
 
         CS requires a pull-up of at least 10 kΩ to 3.3 V, which keeps the line from floating during reset or boot.
 
+        !!! warning "Do not swap SCLK and MOSI"
+            SPI wires connect like to like: SCLK to SCLK, MOSI to MOSI and MISO to MISO. Nothing is crossed over the way UART TX and RX are. Follow the table exactly: **SCLK goes to Pi pin 23** and **MOSI goes to Pi pin 19**. Some AI assistants tell you to swap these two. Don't.
+
+            With SCLK and MOSI swapped, the ESP never receives a clock, so nothing it sends reaches the Pi. The driver loads, but no new `wifi` device appears, and `sudo dmesg | grep esp32_spi` shows:
+
+            ```text
+            esp32_spi: esp_fw_recovery_work: Initial boot event timed out; restarting firmware
+            esp32_spi: esp_request_firmware_restart: Firmware recovery exhausted 3 resets; terminal failure
+            esp32_spi: process_rx_buf: Drop zero SPI RX payload: if=0 if_num=0 type=0 flags=0x00 offset=0 checksum=0x0000 rx_pending=1
+            ```
+
+            If you see these messages, check the SCLK and MOSI wires first.
+
     === "SDIO"
 
         | Function | ESP32 | ESP32-C5 | ESP32-C6 | ESP32-C61 | Pi physical pin |
@@ -112,7 +125,11 @@ A second network interface lets the Pi connect to two networks at once: the mesh
 
     Replace `<target>` with your chip's name in lowercase without the hyphen, e.g. `esp32c5`. For the ESP32-S31, use `idf.py --preview set-target esp32s31` instead.
 
-    In the menu, go to **Example Configuration** > **Transport layer**, select **SPI interface** or **SDIO interface**, then save and exit using the keys shown at the bottom of the menu.
+    In the menu, go to **Example Configuration** > **Transport layer** and select **SPI interface** or **SDIO interface**.
+
+    If you selected SPI, also go to **Example Configuration** > **SPI Configuration** and enable **De-assert HS on CS**.[^5] Without it, the ESP lowers its Handshake line only after a transfer has finished, so the Pi can start the next transfer before the ESP is ready. That transfer is lost, the command in it times out, and the driver resets the ESP. On a Raspberry Pi 5 with an ESP32-C5 at 10 MHz, this happened in about 1 of every 10 Wi-Fi scans.
+
+    Save and exit using the keys shown at the bottom of the menu.
 
     Connect the DevKit to a USB port on the Pi with a USB cable, then find its serial port:
 
@@ -161,8 +178,39 @@ A second network interface lets the Pi connect to two networks at once: the mesh
     === "SPI"
 
         ```bash
-        ./rpi_init.sh spi
+        ./rpi_init.sh spi max_frequency=20000000
         ```
+
+        The script builds the driver (`esp32_spi.ko`), loads it, then applies two Device Tree overlays:[^6]
+
+        | Overlay | What it does |
+        |---|---|
+        | `spidev_disabler` | Disables the Pi's stock SPI device on chip select 0 (`/dev/spidev0.0`), so the ESP can use that chip select |
+        | `esp32-spi` | Adds the ESP on SPI0 chip select 0 (pin 24), with Reset on GPIO6 (pin 31), Handshake on GPIO22 (pin 15) and Data Ready on GPIO27 (pin 13), and sets the maximum SPI clock |
+
+        `max_frequency=20000000` caps the SPI clock at 20 MHz. The firmware asks for 30 MHz, and the driver uses the lower of the two. With jumper wires, a lower clock is more reliable.[^7] This setup was tested at 20 MHz.
+
+        Check that both overlays are applied:
+
+        ```bash
+        sudo dtoverlay -l
+        ```
+
+        ```text
+        Overlays (in load order):
+        0:  spidev_disabler
+        1:  esp32-spi  resetgpio=6 handshakegpio=22 datareadygpio=27 max_frequency=20000000
+        ```
+
+        Check that the driver found the ESP:
+
+        ```bash
+        sudo dmesg | grep esp32_spi
+        ```
+
+        The output should include `ESP-Hosted Version: NG-...` and `capping to 20 MHz`.
+
+        Runtime overlays are lost when the Pi reboots. The **Load the driver at boot** step below applies them again at every boot.
 
     === "SDIO"
 
@@ -186,7 +234,7 @@ A second network interface lets the Pi connect to two networks at once: the mesh
     sudo nano /etc/systemd/system/esp-hosted-linux.service
     ```
 
-    Add these lines. Replace `<username>` with your username, and replace `spi` with `sdio` if you use SDIO:
+    Add these lines. Replace `<username>` with your username. If you use SDIO, replace `spi ap_support max_frequency=20000000` with `sdio ap_support`:
 
     ```ini
     [Unit]
@@ -196,13 +244,15 @@ A second network interface lets the Pi connect to two networks at once: the mesh
     Type=oneshot
     RemainAfterExit=yes
     Environment=ESP_HOSTED_INCREMENTAL=1
-    ExecStart=/home/<username>/esp-hosted-linux/host/rpi_init.sh spi
+    ExecStart=/home/<username>/esp-hosted-linux/host/rpi_init.sh spi ap_support max_frequency=20000000
 
     [Install]
     WantedBy=multi-user.target
     ```
 
     `ESP_HOSTED_INCREMENTAL=1` makes the script reuse the driver you built in the previous step instead of building it again. It only recompiles when something has changed, such as after a kernel update.
+
+    `ap_support` builds the driver with access point (AP) mode, so the interface can also run a Wi-Fi network of its own with `hostapd`.[^8]
 
     Enable the service and reboot:
 
@@ -220,6 +270,24 @@ A second network interface lets the Pi connect to two networks at once: the mesh
     ```
 
     To reload the driver later, run `sudo systemctl restart esp-hosted-linux.service`.
+
+    !!! warning "After updating ESP-Hosted-Linux"
+        The driver only accepts firmware with exactly its own version. If you update the repository with `git pull`, the service builds the new driver at the next boot, and the old firmware on the DevKit no longer matches it. No `wifi` device appears, and `sudo dmesg | grep esp32_spi` shows:
+
+        ```text
+        esp32_spi: check_esp_version: Incompatible ESP Host-firmware release detected, Please use correct ESP-Hosted branch/compatible release
+        ```
+
+        After every `git pull`, rebuild and flash the firmware as well. Unload the driver first, so it can't reset the DevKit while it's being flashed. Replace `/dev/ttyUSB0` with your DevKit's serial port, and replace `esp32_spi` with `esp32_sdio` if you use SDIO:
+
+        ```bash
+        sudo rmmod esp32_spi
+        cd ~/esp-hosted-linux/esp/esp_driver
+        . ./esp-idf/export.sh
+        cd network_adapter
+        idf.py -p /dev/ttyUSB0 build flash
+        sudo systemctl restart esp-hosted-linux.service
+        ```
 
 ## Connect to the Wi-Fi network { .step }
 
@@ -250,7 +318,7 @@ nmcli device
 ??? info "(Optional) Create a profile for quicker connection"
     A profile stores a network's settings under a name of your choice, so you can connect with a single command.
 
-    ### Profile properties[^5]
+    ### Profile properties[^9]
 
     Wi-Fi networks are either **Personal** (one shared password, e.g. home Wi-Fi or a phone hotspot) or **Enterprise** (a personal login, e.g. eduroam or a company network).
 
@@ -304,4 +372,8 @@ nmcli device
 [^2]: <https://github.com/espressif/esp-hosted-linux/blob/master/docs/reference/supported-hardware.md>
 [^3]: <https://github.com/espressif/esp-hosted-linux/blob/master/docs/reference/raspberry-pi.md>
 [^4]: <https://github.com/espressif/esp-hosted-linux/blob/master/docs/getting-started/build-and-flash.md>
-[^5]: <https://networkmanager.dev/docs/api/latest/nm-settings-nmcli.html>
+[^5]: <https://github.com/espressif/esp-hosted-linux/blob/master/docs/architecture/spi.md#chip-select-timing>
+[^6]: <https://github.com/espressif/esp-hosted-linux/blob/master/docs/architecture/spi.md#device-tree-integration>
+[^7]: <https://github.com/espressif/esp-hosted-linux/blob/master/docs/architecture/spi.md#clock-and-signal-quality>
+[^8]: <https://github.com/espressif/esp-hosted-linux/blob/master/docs/guides/wifi-access-point.md>
+[^9]: <https://networkmanager.dev/docs/api/latest/nm-settings-nmcli.html>
