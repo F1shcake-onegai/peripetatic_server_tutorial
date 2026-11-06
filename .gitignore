@@ -3,7 +3,12 @@
 CLAUDE.md
 CLAUDE.local.md
 
-# MkDocs
+# Astro
+node_modules/
+dist/
+.astro/
+
+# MkDocs (local reference build only)
 site/
 .venv/
 __pycache__/

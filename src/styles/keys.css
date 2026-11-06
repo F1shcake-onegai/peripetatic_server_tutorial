@@ -1,0 +1,34 @@
+/* Keys, as ++ctrl+o++ looked in MkDocs (pymdownx.keys): a framed key, and the
+   same symbols Material for MkDocs added to some of them. */
+.sl-markdown-content kbd {
+  padding: 0 0.35em;
+  border: 1px solid var(--sl-color-gray-5);
+  border-bottom-width: 2px;
+  border-radius: 0.25rem;
+  font-size: 0.85em;
+}
+
+.sl-markdown-content kbd.key-control::before {
+  padding-right: 0.4em;
+  content: "⌃";
+}
+
+.sl-markdown-content kbd.key-arrow-up::before {
+  padding-right: 0.4em;
+  content: "↑";
+}
+
+.sl-markdown-content kbd.key-arrow-down::before {
+  padding-right: 0.4em;
+  content: "↓";
+}
+
+.sl-markdown-content kbd.key-enter::after {
+  padding-left: 0.4em;
+  content: "⏎";
+}
+
+.sl-markdown-content kbd.key-tab::after {
+  padding-left: 0.4em;
+  content: "⇥";
+}
