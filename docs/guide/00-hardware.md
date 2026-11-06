@@ -51,19 +51,6 @@ ESP-Hosted-Linux supports these chips:[^1]
 
     CS requires a pull-up of at least 10 kΩ to 3.3 V, which keeps the line from floating during reset or boot.
 
-    !!! warning "Do not swap SCLK and MOSI"
-        SPI wires connect like to like: SCLK to SCLK, MOSI to MOSI and MISO to MISO. Nothing is crossed over the way UART TX and RX are. Follow the table exactly: **SCLK goes to Pi pin 23** and **MOSI goes to Pi pin 19**. Some AI assistants tell you to swap these two. Don't.
-
-        With SCLK and MOSI swapped, the ESP never receives a clock, so nothing it sends reaches the Pi. The driver loads, but no new `wifi` device appears, and `sudo dmesg | grep esp32_spi` shows:
-
-        ```text
-        esp32_spi: esp_fw_recovery_work: Initial boot event timed out; restarting firmware
-        esp32_spi: esp_request_firmware_restart: Firmware recovery exhausted 3 resets; terminal failure
-        esp32_spi: process_rx_buf: Drop zero SPI RX payload: if=0 if_num=0 type=0 flags=0x00 offset=0 checksum=0x0000 rx_pending=1
-        ```
-
-        If you see these messages, check the SCLK and MOSI wires first.
-
 === "SDIO"
 
     | Function | ESP32 | ESP32-C5 | ESP32-C6 | ESP32-C61 | Pi physical pin |
