@@ -7,3 +7,6 @@ CLAUDE.local.md
 site/
 .venv/
 __pycache__/
+
+# Personal notes
+TODO.md

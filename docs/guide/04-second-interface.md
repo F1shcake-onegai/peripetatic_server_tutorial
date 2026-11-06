@@ -25,73 +25,7 @@ A second network interface lets the Pi connect to two networks at once: the mesh
 
     ESP-Hosted-Linux[^1] turns an ESP32 DevKit into a Wi-Fi interface for the Pi. The DevKit runs the ESP-Hosted-Linux firmware, and a driver on the Pi shows it as a normal Wi-Fi interface that NetworkManager can manage.
 
-    !!! warning
-        Raspberry Pi GPIO pins use 3.3 V logic. Do not connect ESP signals to 5 V pins.
-
-    ESP-Hosted-Linux supports these chips:[^2]
-
-    | Chip | Wi-Fi | Transport | Bluetooth | Thread / 802.15.4 |
-    |---|---|---|---|---|
-    | ESP32 | 2.4 GHz, b/g/n | SDIO (see the warning below), SPI | Classic + BLE | — |
-    | ESP32-S2 | 2.4 GHz, b/g/n | SPI | — | — |
-    | ESP32-S3 | 2.4 GHz, b/g/n | SPI | BLE | — |
-    | ESP32-S31 | 2.4 GHz, b/g/n | SPI, USB | Classic + BLE | Yes (on by default in firmware) |
-    | ESP32-C2 | 2.4 GHz, b/g/n | SPI | BLE | — |
-    | ESP32-C3 | 2.4 GHz, b/g/n | SPI | BLE | — |
-    | ESP32-C5 | 2.4 / 5 GHz, a/b/g/n/ac/ax | SDIO, SPI | BLE | — |
-    | ESP32-C6 | 2.4 GHz, b/g/n/ax | SDIO, SPI | BLE | Yes (must be enabled in firmware) |
-    | ESP32-C61 | 2.4 GHz, b/g/n/ax | SDIO, SPI | BLE | — |
-
-    !!! warning "ESP32 over SDIO"
-        On ESP32 modules and DevKits with 3.3 V flash, such as the ESP32-DevKitC, GPIO12 (MTDI) selects the flash voltage and must be pulled low at reset. SDIO needs a pull-up on DAT2, which is GPIO12, so the two are incompatible. The fix is to burn an eFuse, which can't be undone. Read [Conflicts Between Bootstrap and SDIO on DAT2](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/peripherals/sd_pullup_requirements.html#conflicts-between-bootstrap-and-sdio-on-dat2) before using SDIO with an ESP32.
-
-    ## Wire the DevKit to the Pi[^3] { .step }
-
-    === "SPI"
-
-        | Function | ESP32 | ESP32-S2/S3 | ESP32-S31 | ESP32-C2/C3/C5/C6 | ESP32-C61 | Pi physical pin |
-        |---|---|---|---|---|---|---|
-        | CS | IO15 | IO10 | IO23 | IO10 | IO8 | 24 |
-        | SCLK | IO14 | IO12 | IO20 | IO6 | IO6 | 23 |
-        | MISO | IO12 | IO13 | IO22 | IO2 | IO2 | 21 |
-        | MOSI | IO13 | IO11 | IO21 | IO7 | IO7 | 19 |
-        | Handshake | IO2 | IO2 | IO3 | IO3 | IO3 | 15 |
-        | Data Ready | IO4 | IO4 | IO4 | IO4 | IO4 | 13 |
-        | Reset | EN | RST | RST | RST | RST | 31 |
-        | Ground | GND | GND | GND | GND | GND | 25 |
-
-        CS requires a pull-up of at least 10 kΩ to 3.3 V, which keeps the line from floating during reset or boot.
-
-        !!! warning "Do not swap SCLK and MOSI"
-            SPI wires connect like to like: SCLK to SCLK, MOSI to MOSI and MISO to MISO. Nothing is crossed over the way UART TX and RX are. Follow the table exactly: **SCLK goes to Pi pin 23** and **MOSI goes to Pi pin 19**. Some AI assistants tell you to swap these two. Don't.
-
-            With SCLK and MOSI swapped, the ESP never receives a clock, so nothing it sends reaches the Pi. The driver loads, but no new `wifi` device appears, and `sudo dmesg | grep esp32_spi` shows:
-
-            ```text
-            esp32_spi: esp_fw_recovery_work: Initial boot event timed out; restarting firmware
-            esp32_spi: esp_request_firmware_restart: Firmware recovery exhausted 3 resets; terminal failure
-            esp32_spi: process_rx_buf: Drop zero SPI RX payload: if=0 if_num=0 type=0 flags=0x00 offset=0 checksum=0x0000 rx_pending=1
-            ```
-
-            If you see these messages, check the SCLK and MOSI wires first.
-
-    === "SDIO"
-
-        | Function | ESP32 | ESP32-C5 | ESP32-C6 | ESP32-C61 | Pi physical pin |
-        |---|---|---|---|---|---|
-        | DAT3 | IO13 | IO13 | IO23 | IO23 | 13 |
-        | CLK | IO14 | IO9 | IO19 | IO26 | 15 |
-        | CMD | IO15 | IO10 | IO18 | IO25 | 16 |
-        | DAT0 | IO2 | IO8 | IO20 | IO27 | 18 |
-        | DAT1 | IO4 | IO7 | IO21 | IO28 | 22 |
-        | DAT2 | IO12 | IO14 | IO22 | IO22 | 37 |
-        | Reset | EN | RST | RST | RST | 31 |
-        | Ground | GND | GND | GND | GND | 39 |
-
-        CMD and DAT0–DAT3 require 10 kΩ pull-ups. Keep the wires below 10 cm, and avoid putting the SDIO jumper wires too close together. Otherwise both capacitance and mutual capacitance increase, which causes signal degradation and crosstalk, or, in severe cases, stops SDIO from working at all.
-
-        !!! warning
-            On an ESP32, read the "ESP32 over SDIO" warning above before fitting the pull-up on DAT2 (IO12).
+    Wire the DevKit to the Pi first, as described in [0. Hardware Preparation](00-hardware.md#esp32-devkit).
 
     ## Install the ESP-IDF prerequisites { .step }
 
@@ -107,7 +41,7 @@ A second network interface lets the Pi connect to two networks at once: the mesh
     git clone https://github.com/espressif/esp-hosted-linux.git
     ```
 
-    ## Prepare ESP-IDF[^4] { .step }
+    ## Prepare ESP-IDF[^2] { .step }
 
     ```bash
     cd ~/esp-hosted-linux/esp/esp_driver
@@ -127,7 +61,7 @@ A second network interface lets the Pi connect to two networks at once: the mesh
 
     In the menu, go to **Example Configuration** > **Transport layer** and select **SPI interface** or **SDIO interface**.
 
-    If you selected SPI, also go to **Example Configuration** > **SPI Configuration** and enable **De-assert HS on CS**.[^5] Without it, the ESP lowers its Handshake line only after a transfer has finished, so the Pi can start the next transfer before the ESP is ready. That transfer is lost, the command in it times out, and the driver resets the ESP. On a Raspberry Pi 5 with an ESP32-C5 at 10 MHz, this happened in about 1 of every 10 Wi-Fi scans.
+    If you selected SPI, also go to **Example Configuration** > **SPI Configuration** and enable **De-assert HS on CS**.[^3] Without it, the ESP lowers its Handshake line only after a transfer has finished, so the Pi can start the next transfer before the ESP is ready. That transfer is lost, the command in it times out, and the driver resets the ESP. On a Raspberry Pi 5 with an ESP32-C5 at 10 MHz, this happened in about 1 of every 10 Wi-Fi scans.
 
     Save and exit using the keys shown at the bottom of the menu.
 
@@ -181,14 +115,14 @@ A second network interface lets the Pi connect to two networks at once: the mesh
         ./rpi_init.sh spi max_frequency=20000000
         ```
 
-        The script builds the driver (`esp32_spi.ko`), loads it, then applies two Device Tree overlays:[^6]
+        The script builds the driver (`esp32_spi.ko`), loads it, then applies two Device Tree overlays:[^4]
 
         | Overlay | What it does |
         |---|---|
         | `spidev_disabler` | Disables the Pi's stock SPI device on chip select 0 (`/dev/spidev0.0`), so the ESP can use that chip select |
         | `esp32-spi` | Adds the ESP on SPI0 chip select 0 (pin 24), with Reset on GPIO6 (pin 31), Handshake on GPIO22 (pin 15) and Data Ready on GPIO27 (pin 13), and sets the maximum SPI clock |
 
-        `max_frequency=20000000` caps the SPI clock at 20 MHz. The firmware asks for 30 MHz, and the driver uses the lower of the two. With jumper wires, a lower clock is more reliable.[^7] This setup was tested at 20 MHz.
+        `max_frequency=20000000` caps the SPI clock at 20 MHz. The firmware asks for 30 MHz, and the driver uses the lower of the two. With jumper wires, a lower clock is more reliable.[^5] This setup was tested at 20 MHz.
 
         Check that both overlays are applied:
 
@@ -252,7 +186,7 @@ A second network interface lets the Pi connect to two networks at once: the mesh
 
     `ESP_HOSTED_INCREMENTAL=1` makes the script reuse the driver you built in the previous step instead of building it again. It only recompiles when something has changed, such as after a kernel update.
 
-    `ap_support` builds the driver with access point (AP) mode, so the interface can also run a Wi-Fi network of its own with `hostapd`.[^8]
+    `ap_support` builds the driver with access point (AP) mode, so the interface can also run a Wi-Fi network of its own with `hostapd`.[^6]
 
     Enable the service and reboot:
 
@@ -318,7 +252,7 @@ nmcli device
 ??? info "(Optional) Create a profile for quicker connection"
     A profile stores a network's settings under a name of your choice, so you can connect with a single command.
 
-    ### Profile properties[^9]
+    ### Profile properties[^7]
 
     Wi-Fi networks are either **Personal** (one shared password, e.g. home Wi-Fi or a phone hotspot) or **Enterprise** (a personal login, e.g. eduroam or a company network).
 
@@ -369,11 +303,9 @@ nmcli device
     ```
 
 [^1]: <https://github.com/espressif/esp-hosted-linux>
-[^2]: <https://github.com/espressif/esp-hosted-linux/blob/master/docs/reference/supported-hardware.md>
-[^3]: <https://github.com/espressif/esp-hosted-linux/blob/master/docs/reference/raspberry-pi.md>
-[^4]: <https://github.com/espressif/esp-hosted-linux/blob/master/docs/getting-started/build-and-flash.md>
-[^5]: <https://github.com/espressif/esp-hosted-linux/blob/master/docs/architecture/spi.md#chip-select-timing>
-[^6]: <https://github.com/espressif/esp-hosted-linux/blob/master/docs/architecture/spi.md#device-tree-integration>
-[^7]: <https://github.com/espressif/esp-hosted-linux/blob/master/docs/architecture/spi.md#clock-and-signal-quality>
-[^8]: <https://github.com/espressif/esp-hosted-linux/blob/master/docs/guides/wifi-access-point.md>
-[^9]: <https://networkmanager.dev/docs/api/latest/nm-settings-nmcli.html>
+[^2]: <https://github.com/espressif/esp-hosted-linux/blob/master/docs/getting-started/build-and-flash.md>
+[^3]: <https://github.com/espressif/esp-hosted-linux/blob/master/docs/architecture/spi.md#chip-select-timing>
+[^4]: <https://github.com/espressif/esp-hosted-linux/blob/master/docs/architecture/spi.md#device-tree-integration>
+[^5]: <https://github.com/espressif/esp-hosted-linux/blob/master/docs/architecture/spi.md#clock-and-signal-quality>
+[^6]: <https://github.com/espressif/esp-hosted-linux/blob/master/docs/guides/wifi-access-point.md>
+[^7]: <https://networkmanager.dev/docs/api/latest/nm-settings-nmcli.html>
