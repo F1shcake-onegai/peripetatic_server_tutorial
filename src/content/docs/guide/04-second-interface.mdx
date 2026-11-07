@@ -128,7 +128,7 @@ cd ~/esp-hosted-linux/host
 <TabItem label="SPI">
 
 ```bash
-./rpi_init.sh spi resetgpio=⟦esp32-c5-devkitc-1.reset:gpio⟧ handshakegpio=⟦esp32-c5-devkitc-1.handshake:gpio⟧ datareadygpio=⟦esp32-c5-devkitc-1.dataready:gpio⟧ max_frequency=20000000
+./rpi_init.sh spi ap_support resetgpio=⟦esp32-c5-devkitc-1.reset:gpio⟧ handshakegpio=⟦esp32-c5-devkitc-1.handshake:gpio⟧ datareadygpio=⟦esp32-c5-devkitc-1.dataready:gpio⟧ max_frequency=20000000
 ```
 
 `resetgpio`, `handshakegpio` and `datareadygpio` are the GPIOs of the Reset, Handshake and Data Ready wires from [0. Hardware Preparation](../00-hardware/#esp32-devkit).
@@ -168,7 +168,7 @@ Runtime overlays are lost when the Pi reboots. The **Load the driver at boot** s
 <TabItem label="SDIO">
 
 ```bash
-./rpi_init.sh sdio
+./rpi_init.sh sdio ap_support
 ```
 
 </TabItem>
@@ -190,7 +190,7 @@ Create a service that loads the driver at every boot:
 sudo nano /etc/systemd/system/esp-hosted-linux.service
 ```
 
-Add these lines. Replace `<username>` with your username.<Only inline setup={false}> If you use SDIO, replace everything after `rpi_init.sh` with `sdio ap_support`.</Only>
+Add these lines. Replace `<username>` with your username. If you cloned esp-hosted-linux somewhere other than your home folder, replace `/home/<username>/esp-hosted-linux` with the path of your copy.<Only inline setup={false}> If you use SDIO, replace everything after `rpi_init.sh` with `sdio ap_support`.</Only>
 
 <Only notMode="esp32-c5-devkitc-1:sdio">
 
