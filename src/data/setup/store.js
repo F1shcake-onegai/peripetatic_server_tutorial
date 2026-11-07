@@ -120,14 +120,18 @@ export function keepPins(setup, result, catalog = DEVICES) {
 }
 
 // Starlight remembers a synced tab group's choice under "starlight-synced-tabs__<syncKey>".
-// The setup writes the groups it decides, so those tabs open on the viewer's hardware.
-const TAB_PREFIX = 'starlight-synced-tabs__';
+// The setup decides these groups, so their tabs open on the viewer's hardware (and the
+// tab bar is hidden, see visibility.js). Keys are a device id, or "device id:mode".
+export const TAB_PREFIX = 'starlight-synced-tabs__';
 export const TAB_LABELS = {
   'second-interface': {
     'esp32-c5-devkitc-1': 'Using an ESP32 DevKit via GPIO',
     'wifi-dongle': 'Using a Plug-and-Play Wi-Fi Dongle',
   },
-  'esp-transport': { spi: 'SPI', sdio: 'SDIO' },
+  'esp-transport': {
+    'esp32-c5-devkitc-1:spi': 'SPI',
+    'esp32-c5-devkitc-1:sdio': 'SDIO',
+  },
 };
 
 /**
@@ -139,12 +143,9 @@ export function tabChoices(setup) {
   /** @type {Record<string, string>} */
   const out = {};
   if (!setup) return out;
-  for (const d of setup.devices) {
-    const label = TAB_LABELS['second-interface'][/** @type {keyof typeof TAB_LABELS['second-interface']} */ (d.id)];
-    if (label) out['second-interface'] = label;
-    if (d.id === 'esp32-c5-devkitc-1' && d.mode) {
-      out['esp-transport'] = TAB_LABELS['esp-transport'][/** @type {'spi' | 'sdio'} */ (d.mode)];
-    }
+  const have = new Set(setup.devices.flatMap((d) => (d.mode ? [d.id, `${d.id}:${d.mode}`] : [d.id])));
+  for (const [syncKey, labels] of Object.entries(TAB_LABELS)) {
+    for (const [token, label] of Object.entries(labels)) if (have.has(token)) out[syncKey] = label;
   }
   return out;
 }

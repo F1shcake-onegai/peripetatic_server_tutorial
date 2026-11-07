@@ -20,6 +20,10 @@ export default defineConfig({
     starlight({
       title: 'Peripatetic Server Tutorial',
       customCss: ['./src/styles/steps.css', './src/styles/keys.css'],
+      components: {
+        // Marks every page with the viewer's saved setup (src/data/setup/visibility.js)
+        Head: './src/components/overrides/Head.astro',
+      },
       sidebar: [
         { label: 'Home', link: '/' },
         {

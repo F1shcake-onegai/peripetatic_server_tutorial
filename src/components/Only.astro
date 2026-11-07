@@ -1,0 +1,35 @@
+---
+// Shows its content only when the viewer's saved setup matches; with no setup, it is
+// always shown. Conditions combine (all must match). See src/data/setup/visibility.js.
+//
+//   <Only hw="esp32-c5-devkitc-1">…</Only>          with this device
+//   <Only notHw="wifi-dongle">…</Only>              without it
+//   <Only mode="esp32-c5-devkitc-1:sdio">…</Only>   with the device in this mode
+//   <Only track="server">…</Only>                   on this track
+//   <Only setup>…</Only> / <Only setup={false}>…</Only>   with / without a saved setup
+//   inline: a <span> instead of a <div>, for use inside a sentence
+import { checkCondition } from '../data/setup/visibility.js';
+
+interface Props {
+  hw?: string;
+  notHw?: string;
+  mode?: string;
+  track?: 'student' | 'server';
+  setup?: boolean;
+  inline?: boolean;
+}
+
+const { hw, notHw, mode, track, setup, inline } = Astro.props;
+checkCondition({ hw, notHw, mode, track });
+const Tag = inline ? 'span' : 'div';
+---
+
+<Tag
+  class="pst-only"
+  data-when-hw={hw}
+  data-when-not-hw={notHw}
+  data-when-mode={mode}
+  data-when-track={track}
+  data-when-setup={setup === true ? '' : undefined}
+  data-when-no-setup={setup === false ? '' : undefined}
+><slot /></Tag>

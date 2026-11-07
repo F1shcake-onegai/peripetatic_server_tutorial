@@ -1,0 +1,12 @@
+---
+// Starlight's <head>, plus the setup marks: a tiny script that marks <html> with the
+// viewer's saved setup before the page is shown, and the CSS that hides what doesn't
+// match (src/data/setup/visibility.js).
+import Default from '@astrojs/starlight/components/Head.astro';
+import { headScript, visibilityCss } from '../../data/setup/visibility.js';
+---
+
+<Default />
+<script is:inline set:html={headScript()} />
+<style is:inline set:html={visibilityCss()}></style>
+<script src="../../scripts/setup-runtime.js"></script>
