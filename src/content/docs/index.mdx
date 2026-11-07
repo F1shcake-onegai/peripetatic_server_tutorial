@@ -3,10 +3,11 @@ title: "Peripatetic Server Tutorial"
 ---
 
 import { LinkButton } from '@astrojs/starlight/components';
+import Only from '../../components/Only.astro';
 
 Everyone starts with the general chapters 0–3, then continues with the track for their setup.
 
-<LinkButton href="guide/04-second-interface/" variant="secondary">Student Kit</LinkButton> <LinkButton href="guide/04-ai-hat/" variant="secondary">School Server</LinkButton>
+<Only inline track="student"><LinkButton href="guide/04-second-interface/" variant="secondary">Student Kit</LinkButton></Only> <Only inline track="server"><LinkButton href="guide/04-ai-hat/" variant="secondary">School Server</LinkButton></Only>
 
 ### General
 
@@ -14,6 +15,8 @@ Everyone starts with the general chapters 0–3, then continues with the track f
 - [1. Set Up Raspberry Pi OS](guide/01-raspberry-pi-os/)
 - [2. Update and Upgrade](guide/02-update/)
 - [3. Configure zram](guide/03-zram/)
+
+<Only track="student">
 
 ### Student Kit
 
@@ -23,7 +26,13 @@ Everyone starts with the general chapters 0–3, then continues with the track f
 - [7-a. Download Website Files (Static)](guide/07-website-files/)
 - [7-b. Prepare Website Files (Dynamic)](guide/07-website-files-dynamic/)
 
+</Only>
+
+<Only track="server">
+
 ### School Server
 
 - [4. AI HAT Configuration](guide/04-ai-hat/)
 - [5. Reverse Proxy Configuration](guide/05-reverse-proxy/)
+
+</Only>

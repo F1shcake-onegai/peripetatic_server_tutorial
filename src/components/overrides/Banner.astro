@@ -1,0 +1,27 @@
+---
+// Starlight's banner, plus a note shown when the viewer's saved setup doesn't include this
+// page (the <head> script marks <html data-off-setup>, see src/data/setup/visibility.js).
+import Default from '@astrojs/starlight/components/Banner.astro';
+
+const { audience } = Astro.locals.starlightRoute.entry.data;
+const TRACK = { student: 'Student Kit', server: 'School Server' };
+const note = audience?.track
+  ? `This page is for the ${TRACK[audience.track]} track, which isn't part of your setup.`
+  : audience?.hw
+    ? "This page is for hardware that isn't part of your setup."
+    : undefined;
+---
+
+<Default />
+{note && <div class="pst-off-setup" data-pagefind-ignore>{note}</div>}
+
+<style>
+  .pst-off-setup {
+    padding: var(--sl-nav-pad-y) var(--sl-nav-pad-x);
+    background-color: var(--sl-color-gray-6);
+    color: var(--sl-color-white);
+    line-height: var(--sl-line-height-headings);
+    text-align: center;
+    border-bottom: 1px solid var(--sl-color-hairline);
+  }
+</style>

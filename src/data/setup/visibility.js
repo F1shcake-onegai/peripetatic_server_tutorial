@@ -10,6 +10,7 @@
 //   data-board="rpi5"
 //   data-hw="id id …"     chosen devices
 //   data-modes="id:mode …"
+//   data-off-setup        this page's audience (<meta name="pst-audience">) doesn't match
 // What the content marks (see src/components/Only.astro):
 //   data-when-hw="id"     only with that device       data-when-not-hw="id"  only without it
 //   data-when-mode="id:mode"                          data-when-track="student"
@@ -34,6 +35,12 @@ export function headScript() {
     if (s.track === 'student' || s.track === 'server') root.dataset.track = s.track;
     root.dataset.hw = devices.map((d) => d.id).join(' ');
     root.dataset.modes = devices.filter((d) => typeof d.mode === 'string').map((d) => d.id + ':' + d.mode).join(' ');
+    // This page's audience, written just before this script
+    const meta = document.querySelector('meta[name="pst-audience"]');
+    const page = meta ? JSON.parse(meta.getAttribute('content') || '{}') : {};
+    if ((page.track && root.dataset.track && page.track !== root.dataset.track) || (page.hw && !have.has(page.hw))) {
+      root.dataset.offSetup = '';
+    }
     // Tab groups the setup decides open on the viewer's choice (their tab bar is hidden)
     const tabs = ${tabs};
     for (const key in tabs) {
@@ -59,10 +66,17 @@ export function visibilityCss(catalog = DEVICES) {
     `html:not([data-setup]) [data-when-setup]${HIDE}`,
     '.pst-only{display:contents}',
   ];
-  for (const t of TRACKS) rules.push(`html[data-track]:not([data-track="${t}"]) [data-when-track="${t}"]${HIDE}`);
+  for (const t of TRACKS) {
+    rules.push(`html[data-track]:not([data-track="${t}"]) [data-when-track="${t}"]${HIDE}`);
+    // Sidebar: the link's list item, and a group whose links are all for this track
+    rules.push(`html[data-track]:not([data-track="${t}"]) .sidebar-content li:has(> a[data-when-track="${t}"])${HIDE}`);
+    rules.push(`html[data-track]:not([data-track="${t}"]) .sidebar-content li:has(> details):not(:has(a:not([data-when-track="${t}"])))${HIDE}`);
+  }
+  rules.push('.pst-off-setup{display:none}', 'html[data-off-setup] .pst-off-setup{display:block}');
   for (const d of catalog) {
     rules.push(`html[data-setup]:not([data-hw~="${d.id}"]) [data-when-hw="${d.id}"]${HIDE}`);
     rules.push(`html[data-hw~="${d.id}"] [data-when-not-hw="${d.id}"]${HIDE}`);
+    rules.push(`html[data-setup]:not([data-hw~="${d.id}"]) .sidebar-content li:has(> a[data-when-hw="${d.id}"])${HIDE}`);
     for (const mode of Object.keys(d.modes ?? {})) {
       rules.push(`html[data-setup]:not([data-modes~="${d.id}:${mode}"]) [data-when-mode="${d.id}:${mode}"]${HIDE}`);
     }

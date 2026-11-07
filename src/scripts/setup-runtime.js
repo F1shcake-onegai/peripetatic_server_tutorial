@@ -22,7 +22,31 @@ function tidyContents() {
   }
 }
 
+/** Previous/Next skip pages that aren't part of the setup (page list from src/routeData.js). */
+function fixPagination() {
+  const marks = document.documentElement.dataset;
+  const list = document.getElementById('pst-pages');
+  if (marks.setup === undefined || !list) return;
+  /** @type {{href: string, label: string, track?: string, hw?: string}[]} */
+  const pages = JSON.parse(list.textContent || '[]');
+  const hw = new Set((marks.hw ?? '').split(' ').filter(Boolean));
+  const shown = (/** @type {typeof pages[number]} */ p) => (!p.track || !marks.track || p.track === marks.track) && (!p.hw || hw.has(p.hw));
+  const here = pages.findIndex((p) => new URL(p.href, location.href).pathname === location.pathname);
+  if (here < 0) return;
+  for (const [rel, step] of /** @type {const} */ ([['prev', -1], ['next', 1]])) {
+    const link = /** @type {HTMLAnchorElement | null} */ (document.querySelector(`.pagination-links a[rel="${rel}"]`));
+    if (!link) continue;
+    let i = here + step;
+    while (pages[i] && !shown(pages[i])) i += step;
+    if (!pages[i]) { link.hidden = true; continue; }
+    link.href = pages[i].href;
+    const title = link.querySelector('.link-title');
+    if (title) title.textContent = pages[i].label;
+  }
+}
+
 tidyContents();
+fixPagination();
 // Another tab changed the setup: marks on <html> are set by the <head> script on the next
 // load, so reload to show the new setup everywhere at once.
 window.addEventListener('storage', (e) => {

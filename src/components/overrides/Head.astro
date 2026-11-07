@@ -1,12 +1,18 @@
 ---
 // Starlight's <head>, plus the setup marks: a tiny script that marks <html> with the
 // viewer's saved setup before the page is shown, and the CSS that hides what doesn't
-// match (src/data/setup/visibility.js).
+// match (src/data/setup/visibility.js). The page's audience and the page list (from
+// src/routeData.js) are written first, for the off-setup note and Previous/Next.
 import Default from '@astrojs/starlight/components/Head.astro';
 import { headScript, visibilityCss } from '../../data/setup/visibility.js';
+
+const audience = Astro.locals.starlightRoute.entry.data.audience ?? {};
+const pages = /** @type {any} */ (Astro.locals).pstPages ?? [];
 ---
 
 <Default />
+<meta name="pst-audience" content={JSON.stringify(audience)} />
 <script is:inline set:html={headScript()} />
 <style is:inline set:html={visibilityCss()}></style>
+<script type="application/json" id="pst-pages" set:html={JSON.stringify(pages)} />
 <script src="../../scripts/setup-runtime.js"></script>

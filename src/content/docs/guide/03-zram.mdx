@@ -3,6 +3,7 @@ title: "3. Configure zram"
 ---
 
 import { LinkButton } from '@astrojs/starlight/components';
+import Only from '../../../components/Only.astro';
 
 Since Raspberry Pi OS Trixie (released 2 October 2025), zram is built in. The `rpi-swap` package sets up compressed swap on `/dev/zram0` automatically at boot.[^1]<br />
 The `zram-tools` method sets up its own zram swap and conflicts with `rpi-swap`. Instead, configure zram with a drop-in file as shown below.
@@ -193,7 +194,7 @@ sudo sysctl --system
 
 Continue with the track for your setup:
 
-<LinkButton href="../04-second-interface/" variant="secondary">Student Kit</LinkButton> <LinkButton href="../04-ai-hat/" variant="secondary">School Server</LinkButton>
+<Only inline track="student"><LinkButton href="../04-second-interface/" variant="secondary">Student Kit</LinkButton></Only> <Only inline track="server"><LinkButton href="../04-ai-hat/" variant="secondary">School Server</LinkButton></Only>
 
 [^1]: [https://github.com/raspberrypi/rpi-swap](https://github.com/raspberrypi/rpi-swap)
 [^2]: `man swap.conf`, also at [https://github.com/raspberrypi/rpi-swap/blob/main/man/man5/swap.conf.5](https://github.com/raspberrypi/rpi-swap/blob/main/man/man5/swap.conf.5)

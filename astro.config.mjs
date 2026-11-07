@@ -23,7 +23,11 @@ export default defineConfig({
       components: {
         // Marks every page with the viewer's saved setup (src/data/setup/visibility.js)
         Head: './src/components/overrides/Head.astro',
+        // Adds a note on pages that aren't part of the viewer's setup
+        Banner: './src/components/overrides/Banner.astro',
       },
+      // Tags sidebar links with their page's audience
+      routeMiddleware: './src/routeData.js',
       sidebar: [
         { label: 'Home', link: '/' },
         {
