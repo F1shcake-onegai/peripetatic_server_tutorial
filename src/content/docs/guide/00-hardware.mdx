@@ -3,16 +3,28 @@ title: "0. Hardware Preparation"
 ---
 
 import { TabItem, Tabs } from '@astrojs/starlight/components';
+import Only from '../../../components/Only.astro';
+import WiringTable from '../../../components/WiringTable.astro';
 
 Connect the hardware before you set up Raspberry Pi OS in chapter 1. Disconnect the Pi from power before you connect anything.
+
+<Only track="student"><Only hw="esp32-c5-devkitc-1">
 
 **Student Kit**
 
 - [ESP32 DevKit](#esp32-devkit) (chapter 4, optional)
 
+</Only></Only>
+
+<Only track="server"><Only hw="ai-hat-plus-2">
+
 **School Server**
 
 - [AI HAT+ 2](#ai-hat-2) (chapter 4)
+
+</Only></Only>
+
+<Only hw="esp32-c5-devkitc-1">
 
 ## ESP32 DevKit
 
@@ -21,6 +33,8 @@ Only for the ESP32 DevKit option in chapter 4.
 :::caution[Warning]
 Raspberry Pi GPIO pins use 3.3 V logic. Do not connect ESP signals to 5 V pins.
 :::
+
+<Only setup={false}>
 
 ESP-Hosted-Linux supports these chips:[^1]
 
@@ -40,10 +54,20 @@ ESP-Hosted-Linux supports these chips:[^1]
 On ESP32 modules and DevKits with 3.3 V flash, such as the ESP32-DevKitC, GPIO12 (MTDI) selects the flash voltage and must be pulled low at reset. SDIO needs a pull-up on DAT2, which is GPIO12, so the two are incompatible. The fix is to burn an eFuse, which can't be undone. Read [Conflicts Between Bootstrap and SDIO on DAT2](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/peripherals/sd_pullup_requirements.html#conflicts-between-bootstrap-and-sdio-on-dat2) before using SDIO with an ESP32.
 :::
 
+</Only>
+
 ### Wire the DevKit to the Pi[^2]
 
 <Tabs syncKey="esp-transport">
 <TabItem label="SPI">
+
+<Only setup hw="esp32-c5-devkitc-1">
+
+<WiringTable device="esp32-c5-devkitc-1" mode="spi" />
+
+</Only>
+
+<Only setup={false}>
 
 | Function | ESP32 | ESP32-S2/S3 | ESP32-S31 | ESP32-C2/C3/C5/C6 | ESP32-C61 | Pi physical pin |
 |---|---|---|---|---|---|---|
@@ -56,10 +80,20 @@ On ESP32 modules and DevKits with 3.3 V flash, such as the ESP32-DevKitC, GPIO12
 | Reset | EN | RST | RST | RST | RST | 31 |
 | Ground | GND | GND | GND | GND | GND | 25 |
 
+</Only>
+
 CS requires a pull-up of at least 10 kΩ to 3.3 V, which keeps the line from floating during reset or boot.
 
 </TabItem>
 <TabItem label="SDIO">
+
+<Only setup hw="esp32-c5-devkitc-1">
+
+<WiringTable device="esp32-c5-devkitc-1" mode="sdio" />
+
+</Only>
+
+<Only setup={false}>
 
 | Function | ESP32 | ESP32-C5 | ESP32-C6 | ESP32-C61 | Pi physical pin |
 |---|---|---|---|---|---|
@@ -72,14 +106,24 @@ CS requires a pull-up of at least 10 kΩ to 3.3 V, which keeps the line from flo
 | Reset | EN | RST | RST | RST | 31 |
 | Ground | GND | GND | GND | GND | 39 |
 
+</Only>
+
 CMD and DAT0–DAT3 require 10 kΩ pull-ups. Keep the wires below 10 cm, and avoid putting the SDIO jumper wires too close together. Otherwise both capacitance and mutual capacitance increase, which causes signal degradation and crosstalk, or, in severe cases, stops SDIO from working at all.
+
+<Only setup={false}>
 
 :::caution[Warning]
 On an ESP32, read the "ESP32 over SDIO" warning above before fitting the pull-up on DAT2 (IO12).
 :::
 
+</Only>
+
 </TabItem>
 </Tabs>
+
+</Only>
+
+<Only hw="ai-hat-plus-2">
 
 ## AI HAT+ 2
 
@@ -94,6 +138,8 @@ On an ESP32, read the "ESP32 over SDIO" warning above before fitting the pull-up
     4. Insert one end of the cable into the Pi's PCIe connector, with the metal contacts facing the USB ports. Push the clips back in on both sides.
     5. Screw the AI HAT+ 2 onto the spacers with the four short screws, with its components facing up.
     6. Insert the other end of the cable into the AI HAT+ 2's PCIe connector. Push the clips back in on both sides.
+
+</Only>
 
 [^1]: [https://github.com/espressif/esp-hosted-linux/blob/master/docs/reference/supported-hardware.md](https://github.com/espressif/esp-hosted-linux/blob/master/docs/reference/supported-hardware.md)
 [^2]: [https://github.com/espressif/esp-hosted-linux/blob/master/docs/reference/raspberry-pi.md](https://github.com/espressif/esp-hosted-linux/blob/master/docs/reference/raspberry-pi.md)

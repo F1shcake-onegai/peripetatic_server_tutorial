@@ -5,6 +5,8 @@ audience:
 ---
 
 import { TabItem, Tabs } from '@astrojs/starlight/components';
+import Only from '../../../components/Only.astro';
+import Pin from '../../../components/Pin.astro';
 
 A second network interface lets the Pi connect to two networks at once: the mesh network and a Wi-Fi network (WLAN). You need it to:
 
@@ -126,15 +128,17 @@ cd ~/esp-hosted-linux/host
 <TabItem label="SPI">
 
 ```bash
-./rpi_init.sh spi max_frequency=20000000
+./rpi_init.sh spi resetgpio=⟦esp32-c5-devkitc-1.reset:gpio⟧ handshakegpio=⟦esp32-c5-devkitc-1.handshake:gpio⟧ datareadygpio=⟦esp32-c5-devkitc-1.dataready:gpio⟧ max_frequency=20000000
 ```
+
+`resetgpio`, `handshakegpio` and `datareadygpio` are the GPIOs of the Reset, Handshake and Data Ready wires from [0. Hardware Preparation](../00-hardware/#esp32-devkit).
 
 The script builds the driver (`esp32_spi.ko`), loads it, then applies two Device Tree overlays:[^4]
 
 | Overlay | What it does |
 |---|---|
 | `spidev_disabler` | Disables the Pi's stock SPI device on chip select 0 (`/dev/spidev0.0`), so the ESP can use that chip select |
-| `esp32-spi` | Adds the ESP on SPI0 chip select 0 (pin 24), with Reset on GPIO6 (pin 31), Handshake on GPIO22 (pin 15) and Data Ready on GPIO27 (pin 13), and sets the maximum SPI clock |
+| `esp32-spi` | Adds the ESP on SPI0 chip select 0 (pin 24), with Reset on GPIO<Pin signal="esp32-c5-devkitc-1.reset" show="gpio" /> (pin <Pin signal="esp32-c5-devkitc-1.reset" show="pin" />), Handshake on GPIO<Pin signal="esp32-c5-devkitc-1.handshake" show="gpio" /> (pin <Pin signal="esp32-c5-devkitc-1.handshake" show="pin" />) and Data Ready on GPIO<Pin signal="esp32-c5-devkitc-1.dataready" show="gpio" /> (pin <Pin signal="esp32-c5-devkitc-1.dataready" show="pin" />), and sets the maximum SPI clock |
 
 `max_frequency=20000000` caps the SPI clock at 20 MHz. The firmware asks for 30 MHz, and the driver uses the lower of the two. With jumper wires, a lower clock is more reliable.[^5] This setup was tested at 20 MHz.
 
@@ -147,7 +151,7 @@ sudo dtoverlay -l
 ```text
 Overlays (in load order):
 0:  spidev_disabler
-1:  esp32-spi  resetgpio=6 handshakegpio=22 datareadygpio=27 max_frequency=20000000
+1:  esp32-spi  resetgpio=⟦esp32-c5-devkitc-1.reset:gpio⟧ handshakegpio=⟦esp32-c5-devkitc-1.handshake:gpio⟧ datareadygpio=⟦esp32-c5-devkitc-1.dataready:gpio⟧ max_frequency=20000000
 ```
 
 Check that the driver found the ESP:
@@ -186,7 +190,9 @@ Create a service that loads the driver at every boot:
 sudo nano /etc/systemd/system/esp-hosted-linux.service
 ```
 
-Add these lines. Replace `<username>` with your username. If you use SDIO, replace `spi ap_support max_frequency=20000000` with `sdio ap_support`:
+Add these lines. Replace `<username>` with your username.<Only inline setup={false}> If you use SDIO, replace everything after `rpi_init.sh` with `sdio ap_support`.</Only>
+
+<Only notMode="esp32-c5-devkitc-1:sdio">
 
 ```ini
 [Unit]
@@ -196,11 +202,31 @@ Description=ESP-Hosted-Linux driver
 Type=oneshot
 RemainAfterExit=yes
 Environment=ESP_HOSTED_INCREMENTAL=1
-ExecStart=/home/<username>/esp-hosted-linux/host/rpi_init.sh spi ap_support max_frequency=20000000
+ExecStart=/home/<username>/esp-hosted-linux/host/rpi_init.sh spi ap_support resetgpio=⟦esp32-c5-devkitc-1.reset:gpio⟧ handshakegpio=⟦esp32-c5-devkitc-1.handshake:gpio⟧ datareadygpio=⟦esp32-c5-devkitc-1.dataready:gpio⟧ max_frequency=20000000
 
 [Install]
 WantedBy=multi-user.target
 ```
+
+</Only>
+
+<Only setup mode="esp32-c5-devkitc-1:sdio">
+
+```ini
+[Unit]
+Description=ESP-Hosted-Linux driver
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+Environment=ESP_HOSTED_INCREMENTAL=1
+ExecStart=/home/<username>/esp-hosted-linux/host/rpi_init.sh sdio ap_support
+
+[Install]
+WantedBy=multi-user.target
+```
+
+</Only>
 
 `ESP_HOSTED_INCREMENTAL=1` makes the script reuse the driver you built in the previous step instead of building it again. It only recompiles when something has changed, such as after a kernel update.
 
@@ -230,7 +256,9 @@ The driver only accepts firmware with exactly its own version. If you update the
 esp32_spi: check_esp_version: Incompatible ESP Host-firmware release detected, Please use correct ESP-Hosted branch/compatible release
 ```
 
-After every `git pull`, rebuild and flash the firmware as well. Unload the driver first, so it can't reset the DevKit while it's being flashed. Replace `/dev/ttyUSB0` with your DevKit's serial port, and replace `esp32_spi` with `esp32_sdio` if you use SDIO:
+After every `git pull`, rebuild and flash the firmware as well. Unload the driver first, so it can't reset the DevKit while it's being flashed. Replace `/dev/ttyUSB0` with your DevKit's serial port<Only inline setup={false}>, and replace `esp32_spi` with `esp32_sdio` if you use SDIO</Only>:
+
+<Only notMode="esp32-c5-devkitc-1:sdio">
 
 ```bash
 sudo rmmod esp32_spi
@@ -240,6 +268,21 @@ cd network_adapter
 idf.py -p /dev/ttyUSB0 build flash
 sudo systemctl restart esp-hosted-linux.service
 ```
+
+</Only>
+
+<Only setup mode="esp32-c5-devkitc-1:sdio">
+
+```bash
+sudo rmmod esp32_sdio
+cd ~/esp-hosted-linux/esp/esp_driver
+. ./esp-idf/export.sh
+cd network_adapter
+idf.py -p /dev/ttyUSB0 build flash
+sudo systemctl restart esp-hosted-linux.service
+```
+
+</Only>
 :::
 
 </TabItem>

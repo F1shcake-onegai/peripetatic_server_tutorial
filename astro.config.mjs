@@ -22,7 +22,7 @@ export default defineConfig({
       title: 'Peripatetic Server Tutorial',
       // Pin placeholders in code blocks follow the viewer's setup (src/data/setup/pins.js)
       expressiveCode: { plugins: [pluginPinPlaceholders()] },
-      customCss: ['./src/styles/steps.css', './src/styles/keys.css'],
+      customCss: ['./src/styles/steps.css', './src/styles/keys.css', './src/styles/setup.css'],
       components: {
         // Marks every page with the viewer's saved setup (src/data/setup/visibility.js)
         Head: './src/components/overrides/Head.astro',

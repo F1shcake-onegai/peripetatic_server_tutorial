@@ -5,6 +5,7 @@
 //   <Only hw="esp32-c5-devkitc-1">…</Only>          with this device
 //   <Only notHw="wifi-dongle">…</Only>              without it
 //   <Only mode="esp32-c5-devkitc-1:sdio">…</Only>   with the device in this mode
+//   <Only notMode="esp32-c5-devkitc-1:sdio">…</Only>  unless the device is in this mode
 //   <Only track="server">…</Only>                   on this track
 //   <Only setup>…</Only> / <Only setup={false}>…</Only>   with / without a saved setup
 //   inline: a <span> instead of a <div>, for use inside a sentence
@@ -14,13 +15,14 @@ interface Props {
   hw?: string;
   notHw?: string;
   mode?: string;
+  notMode?: string;
   track?: 'student' | 'server';
   setup?: boolean;
   inline?: boolean;
 }
 
-const { hw, notHw, mode, track, setup, inline } = Astro.props;
-checkCondition({ hw, notHw, mode, track });
+const { hw, notHw, mode, notMode, track, setup, inline } = Astro.props;
+checkCondition({ hw, notHw, mode, notMode, track });
 const Tag = inline ? 'span' : 'div';
 ---
 
@@ -29,6 +31,7 @@ const Tag = inline ? 'span' : 'div';
   data-when-hw={hw}
   data-when-not-hw={notHw}
   data-when-mode={mode}
+  data-when-not-mode={notMode}
   data-when-track={track}
   data-when-setup={setup === true ? '' : undefined}
   data-when-no-setup={setup === false ? '' : undefined}

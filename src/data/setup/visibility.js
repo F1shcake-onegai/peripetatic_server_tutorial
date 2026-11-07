@@ -13,7 +13,8 @@
 //   data-off-setup        this page's audience (<meta name="pst-audience">) doesn't match
 // What the content marks (see src/components/Only.astro):
 //   data-when-hw="id"     only with that device       data-when-not-hw="id"  only without it
-//   data-when-mode="id:mode"                          data-when-track="student"
+//   data-when-mode="id:mode"                          data-when-not-mode="id:mode"
+//   data-when-track="student"
 //   data-when-setup       only with a saved setup     data-when-no-setup     only without one
 import { DEVICES } from './devices.js';
 import { SETUP_KEY, SETUP_VERSION, TAB_LABELS, TAB_PREFIX } from './store.js';
@@ -79,6 +80,7 @@ export function visibilityCss(catalog = DEVICES) {
     rules.push(`html[data-setup]:not([data-hw~="${d.id}"]) .sidebar-content li:has(> a[data-when-hw="${d.id}"])${HIDE}`);
     for (const mode of Object.keys(d.modes ?? {})) {
       rules.push(`html[data-setup]:not([data-modes~="${d.id}:${mode}"]) [data-when-mode="${d.id}:${mode}"]${HIDE}`);
+      rules.push(`html[data-modes~="${d.id}:${mode}"] [data-when-not-mode="${d.id}:${mode}"]${HIDE}`);
     }
   }
   // A tab group the setup decides shows only the chosen tab: hide its tab bar
@@ -93,16 +95,16 @@ export function visibilityCss(catalog = DEVICES) {
 /**
  * Check an <Only> condition while building, so a typo fails the build instead of hiding
  * content for everyone. Throws on an unknown device, mode or track.
- * @param {{hw?: string, notHw?: string, mode?: string, track?: string}} when
+ * @param {{hw?: string, notHw?: string, mode?: string, notMode?: string, track?: string}} when
  * @param {import('./devices.js').Device[]} [catalog]
  */
 export function checkCondition(when, catalog = DEVICES) {
   for (const id of [when.hw, when.notHw].filter(Boolean)) {
     if (!catalog.some((d) => d.id === id)) throw new Error(`<Only>: unknown device "${id}"`);
   }
-  if (when.mode) {
-    const [id, mode] = when.mode.split(':');
-    if (!catalog.find((d) => d.id === id)?.modes?.[mode]) throw new Error(`<Only>: unknown mode "${when.mode}"`);
+  for (const token of [when.mode, when.notMode].filter(Boolean)) {
+    const [id, mode] = /** @type {string} */ (token).split(':');
+    if (!catalog.find((d) => d.id === id)?.modes?.[mode]) throw new Error(`<Only>: unknown mode "${token}"`);
   }
   if (when.track && !TRACKS.includes(when.track)) throw new Error(`<Only>: unknown track "${when.track}"`);
 }

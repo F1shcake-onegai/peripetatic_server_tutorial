@@ -1,0 +1,22 @@
+/* <Only> wrappers (src/components/Only.astro) take no part in the layout (display: contents),
+   so the first block inside one gets the spacing it would have outside, as Starlight does
+   for framework islands. */
+.sl-markdown-content
+  :not(a, strong, em, del, span, input, code, br)
+  + .pst-only
+  > :not(a, strong, em, del, span, input, code, br, .pst-only, :where(.not-content *)):first-child,
+.sl-markdown-content
+  :not(a, strong, em, del, span, input, code, br)
+  + .pst-only
+  > .pst-only:first-child
+  > :not(a, strong, em, del, span, input, code, br, :where(.not-content *)):first-child {
+  margin-top: var(--sl-content-gap-y);
+}
+
+/* Headings after non-headings have more spacing (as in Starlight's markdown.css) */
+.sl-markdown-content
+  :not(h1, h2, h3, h4, h5, h6, .sl-heading-wrapper)
+  + .pst-only
+  > :is(h1, h2, h3, h4, h5, h6, .sl-heading-wrapper):first-child {
+  margin-top: 1.5em;
+}
