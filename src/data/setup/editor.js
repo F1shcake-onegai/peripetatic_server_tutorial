@@ -3,6 +3,7 @@
 // leaves the one it was given unchanged. Pins (moved or kept) of a device that is removed,
 // or whose mode changes, are dropped: its signals change.
 import { DEVICES } from './devices.js';
+import { keepPins } from './store.js';
 
 /** @typedef {import('./store.js').Setup} Setup */
 /** @typedef {import('./devices.js').Device} Device */
@@ -79,6 +80,18 @@ export function movePin(setup, key, gpio) {
   if (gpio === undefined) delete moved[key];
   else moved[key] = gpio;
   return { ...setup, moved, kept };
+}
+
+/**
+ * Move a signal by hand (or back to automatic, gpio undefined) without moving anything
+ * else: every other pin placed automatically is kept where it is first. Otherwise freeing
+ * one pin and taking another could regroup another module's automatic pins.
+ * @param {Setup} setup @param {string} key 'deviceId.signalId' @param {number | undefined} gpio
+ * @param {Device[]} [catalog]
+ * @returns {Setup}
+ */
+export function moveSignal(setup, key, gpio, catalog = DEVICES) {
+  return movePin(keepPins(setup, undefined, catalog), key, gpio);
 }
 
 /** Forget moved and kept pins: everything is placed automatically again. @param {Setup} setup */

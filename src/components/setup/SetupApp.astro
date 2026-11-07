@@ -113,6 +113,195 @@
     padding: 0.3rem 0.5rem;
     border-bottom: 1px solid var(--sl-color-gray-5);
   }
+  /* Header picture */
+  .pst-setup .pst-picture {
+    margin: 0.5rem 0 1rem;
+  }
+  .pst-setup .pst-picture > * + * {
+    margin-top: 0.6rem;
+  }
+  .pst-setup .pst-chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+  }
+  .pst-setup .pst-chip {
+    font: inherit;
+    font-size: var(--sl-text-sm);
+    padding: 0.1rem 0.65rem;
+    border-radius: 999px;
+    border: 1px solid var(--sl-color-gray-4);
+    background: transparent;
+    color: var(--sl-color-white);
+    cursor: pointer;
+  }
+  .pst-setup .pst-chip[aria-pressed='true'] {
+    background: var(--sl-color-accent);
+    border-color: var(--sl-color-accent);
+    color: var(--sl-color-black);
+  }
+  .pst-setup .pst-pin-details {
+    position: sticky;
+    top: calc(var(--sl-nav-height, 4rem) + 0.5rem);
+    z-index: 1;
+    background: var(--sl-color-bg, var(--sl-color-black));
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.4rem;
+    padding: 0.5rem 0.75rem;
+    font-size: var(--sl-text-sm);
+  }
+  .pst-setup .pst-pin-details p,
+  .pst-setup .pst-pin-details ul {
+    margin: 0;
+  }
+  .pst-setup .pst-pin-details > * + * {
+    margin-top: 0.3rem;
+  }
+  .pst-setup .pst-pin-details ul {
+    padding-left: 1.1rem;
+  }
+  .pst-setup .pst-move {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3rem 0.5rem;
+  }
+  .pst-setup .pst-move select {
+    font: inherit;
+    padding: 0.15rem 0.3rem;
+    border-radius: 0.3rem;
+    border: 1px solid var(--sl-color-gray-4);
+    background: var(--sl-color-black);
+    color: var(--sl-color-white);
+  }
+  .pst-setup .pst-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto minmax(0, 1fr);
+    align-items: center;
+    gap: 0.25rem 0.4rem;
+    padding: 0.6rem 0.5rem;
+    border-radius: 0.5rem;
+    background: var(--sl-color-gray-6);
+    font-size: var(--sl-text-sm);
+  }
+  .pst-setup .pst-label {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.1rem 0.4rem;
+    min-width: 0;
+    cursor: pointer;
+  }
+  .pst-setup .pst-left {
+    flex-direction: row-reverse;
+  }
+  .pst-setup .pst-pin-name {
+    white-space: nowrap;
+    color: var(--sl-color-gray-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .pst-setup .pst-badge {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    padding: 0 0.45rem;
+    border-radius: 0.6rem;
+    background: var(--sl-color-accent-low);
+    color: var(--sl-color-accent-high);
+    font-size: var(--sl-text-xs);
+    line-height: 1.6;
+  }
+  .pst-setup .pst-badge-rail {
+    background: var(--sl-color-gray-5);
+    color: var(--sl-color-white);
+  }
+  .pst-setup .pst-label.pst-lit .pst-badge {
+    background: var(--sl-color-accent);
+    color: var(--sl-color-black);
+  }
+  .pst-setup .pst-pin,
+  .pst-setup .pst-swatch {
+    --pst-pin: var(--sl-color-green);
+    --pst-pin-low: var(--sl-color-green-low);
+    --pst-pin-high: var(--sl-color-green-high);
+    --pst-pin-fill: var(--sl-color-green);
+    border: 2px solid var(--pst-pin);
+    border-radius: 50%;
+    background: var(--pst-pin-low);
+    color: var(--pst-pin-high);
+  }
+  .pst-setup .pst-pin {
+    width: 1.9rem;
+    height: 1.9rem;
+    padding: 0;
+    font: inherit;
+    font-size: var(--sl-text-xs);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+  }
+  .pst-setup .pst-k-3v3 {
+    --pst-pin: var(--sl-color-orange);
+    --pst-pin-low: var(--sl-color-orange-low);
+    --pst-pin-high: var(--sl-color-orange-high);
+    --pst-pin-fill: var(--sl-color-orange);
+  }
+  .pst-setup .pst-k-5v {
+    --pst-pin: var(--sl-color-red);
+    --pst-pin-low: var(--sl-color-red-low);
+    --pst-pin-high: var(--sl-color-red-high);
+    --pst-pin-fill: var(--sl-color-red);
+  }
+  .pst-setup .pst-k-gnd {
+    --pst-pin: var(--sl-color-gray-3);
+    --pst-pin-low: var(--sl-color-gray-5);
+    --pst-pin-high: var(--sl-color-white);
+    --pst-pin-fill: hsl(224, 6%, 62%);
+  }
+  .pst-setup .pst-pin.pst-reserved,
+  .pst-setup .pst-swatch.pst-reserved {
+    --pst-pin: var(--sl-color-gray-4);
+    --pst-pin-low: transparent;
+    --pst-pin-high: var(--sl-color-gray-3);
+    border-style: dashed;
+  }
+  .pst-setup .pst-pin.pst-used {
+    background: var(--pst-pin-fill);
+    color: hsl(224, 10%, 10%);
+  }
+  .pst-setup .pst-pin.pst-target {
+    border-style: dashed;
+    border-color: var(--sl-color-text-accent);
+    background: var(--sl-color-accent-low);
+    color: var(--sl-color-text-accent);
+  }
+  .pst-setup .pst-pin.pst-lit {
+    box-shadow: 0 0 0 3px var(--sl-color-text-accent);
+  }
+  .pst-setup .pst-pin.pst-selected {
+    outline: 3px solid var(--sl-color-white);
+    outline-offset: 2px;
+  }
+  .pst-setup .pst-dim {
+    opacity: 0.35;
+  }
+  .pst-setup .pst-keys {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1rem;
+    font-size: var(--sl-text-xs);
+    color: var(--sl-color-gray-2);
+  }
+  .pst-setup .pst-key {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+  .pst-setup .pst-swatch {
+    display: inline-block;
+    width: 0.85rem;
+    height: 0.85rem;
+  }
   .pst-setup .pst-actions {
     display: flex;
     flex-wrap: wrap;
