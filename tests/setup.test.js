@@ -217,11 +217,43 @@ test('with the ESP32 over SPI, sensors avoid its pins and its ground', () => {
   assert.notEqual(laser.gnd, tilt.gnd);
 });
 
-test('more devices than 3V3 pins share them', () => {
-  const r = allocate({ board: 'rpi5', devices: ['waveshare-tilt', 'waveshare-laser', 'waveshare-hall'].map((id) => ({ id })) });
+test('breadboard: up to 2 modules per supply get their own pins (optional breadboard)', () => {
+  const r = allocate({ board: 'rpi5', devices: ['waveshare-tilt', 'waveshare-laser', 'adafruit-mini-pir-4871'].map((id) => ({ id })) });
+  assert.equal(r.breadboard.required, false);
+  assert.deepEqual(r.breadboard.rails, []);
   const power = r.assignments.filter((a) => a.type === 'power');
-  assert.deepEqual(power.map((a) => a.pin), [17, 1, 17]); // a free 3V3 pin first, then the nearest
-  assert.equal(power[2].shared, true);
+  assert.deepEqual(power.map((a) => [a.device, a.pin]), [
+    ['adafruit-mini-pir-4871', 4], ['waveshare-laser', 17], ['waveshare-tilt', 1],
+  ].sort((a, b) => DEVICES.findIndex((d) => d.id === a[0]) - DEVICES.findIndex((d) => d.id === b[0])));
+  assert.ok(power.every((a) => !a.shared && !a.rail));
+});
+
+test('breadboard: a third module on 3V3 sends power and ground through a rail pair', () => {
+  const ids = ['waveshare-tilt', 'waveshare-laser', 'waveshare-hall'];
+  const r = allocate({ board: 'rpi5', devices: ids.map((id) => ({ id })) });
+  assert.ok(r.ok);
+  assert.equal(r.breadboard.required, true);
+  const supplyGround = r.assignments.filter((a) => a.type === 'power' || a.type === 'ground');
+  assert.ok(supplyGround.every((a) => a.rail === '3v3' && a.pin === undefined && a.how === 'breadboard'));
+  assert.deepEqual(r.breadboard.rails.map((x) => [x.rail, x.supply, x.ground, [...x.devices].sort()]), [['3v3', 17, 30, [...ids].sort()]]);
+});
+
+test('breadboard: a 5V module gets its own rail pair when the breadboard is required', () => {
+  const r = allocate({ board: 'rpi5', devices: ['waveshare-tilt', 'waveshare-laser', 'waveshare-hall', 'adafruit-mini-pir-4871'].map((id) => ({ id })) });
+  assert.deepEqual(r.breadboard.rails.map((x) => [x.rail, x.devices]), [
+    ['3v3', ['waveshare-hall', 'waveshare-laser', 'waveshare-tilt']], ['5v', ['adafruit-mini-pir-4871']],
+  ]);
+  assert.ok([2, 4].includes(r.breadboard.rails[1].supply));
+  assert.notEqual(r.breadboard.rails[0].ground, r.breadboard.rails[1].ground);
+});
+
+test('breadboard: the ESP32 keeps its own ground wire; boards on the header do not count', () => {
+  const r = allocate({ board: 'rpi5', devices: [{ id: ESP, mode: 'spi' }, ...['waveshare-tilt', 'waveshare-laser', 'waveshare-hall'].map((id) => ({ id }))] });
+  assert.equal(r.breadboard.required, true);
+  assert.equal(pinsOf(r, ESP).gnd, 25);
+  assert.ok(!r.breadboard.rails[0].devices.includes(ESP));
+  const hat = allocate({ board: 'rpi5', devices: [{ id: 'waveshare-2in13-touch-epaper-hat' }] });
+  assert.equal(hat.breadboard.required, false);
 });
 
 test('selection order does not change the result', () => {

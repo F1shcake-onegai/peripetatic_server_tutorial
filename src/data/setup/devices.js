@@ -45,6 +45,7 @@
  * @typedef {object} Device
  * @property {string} id
  * @property {string} name
+ * @property {string} short              Short name shown next to pins, e.g. 'GPS Module'
  * @property {string} [versions]        Board versions covered, shown next to the name
  * @property {('student' | 'server')[]} tracks
  * @property {'network' | 'hat' | 'sensor' | 'camera' | 'display'} category
@@ -80,6 +81,7 @@ export const DEVICES = [
   {
     id: 'esp32-c5-devkitc-1',
     name: 'ESP32-C5-DevKitC-1',
+    short: 'ESP32-C5',
     versions: 'v1.1 or later',
     tracks: ['student'],
     category: 'network',
@@ -202,6 +204,7 @@ export const DEVICES = [
   {
     id: 'wifi-dongle',
     name: 'Plug-and-play Wi-Fi dongle',
+    short: 'Wi-Fi Dongle',
     tracks: ['student'],
     category: 'network',
     oneOf: 'second network interface',
@@ -213,6 +216,7 @@ export const DEVICES = [
   {
     id: 'ai-hat-plus-2',
     name: 'AI HAT+ 2',
+    short: 'AI HAT+ 2',
     tracks: ['server'],
     category: 'hat',
     boards: ['rpi5'],
@@ -235,6 +239,7 @@ export const DEVICES = [
   {
     id: 'waveshare-2in13-touch-epaper-hat',
     name: '2.13inch Touch e-Paper HAT',
+    short: 'e-Paper HAT',
     tracks: ['student'],
     category: 'hat',
     header: { covers: true, passthrough: false },
@@ -262,6 +267,7 @@ export const DEVICES = [
   {
     id: 'pimoroni-inky-impression-7in3',
     name: 'Inky Impression 7.3"',
+    short: 'Inky Impression',
     tracks: ['student'],
     category: 'hat',
     header: { covers: true, passthrough: false },
@@ -295,6 +301,7 @@ export const DEVICES = [
   {
     id: 'rpi-camera-module-3',
     name: 'Camera Module 3',
+    short: 'Camera Module 3',
     tracks: ['student', 'server'],
     category: 'camera',
     uses: { camera: 1 },
@@ -310,6 +317,7 @@ export const DEVICES = [
   {
     id: 'freenove-5in-dsi',
     name: 'Freenove 5" IPS display (FNK0078)',
+    short: 'Display',
     tracks: ['student'],
     category: 'display',
     uses: { display: 1 },
@@ -323,6 +331,7 @@ export const DEVICES = [
   {
     id: 'adafruit-mini-pir-4871',
     name: 'Mini PIR Motion Sensor (Adafruit 4871)',
+    short: 'PIR Sensor',
     tracks: ['student'],
     category: 'sensor',
     // "power it from 3 to 12V DC, there's an onboard regulator"; "Digital signal output is
@@ -346,6 +355,7 @@ export const DEVICES = [
   {
     id: 'ublox-neo-6m-gps',
     name: 'u-blox NEO-6M GPS Receiver Module (52Pi)',
+    short: 'GPS Module',
     tracks: ['student'],
     category: 'sensor',
     // u-blox NEO-6 data sheet GPS.G6-HW-09005-E: VCC 2.7-3.6 V for the NEO-6M, digital I/O
@@ -376,6 +386,7 @@ export const DEVICES = [
   {
     id: 'waveshare-mq5-gas',
     name: 'MQ-5 Gas Sensor',
+    short: 'Gas Sensor',
     tracks: ['student'],
     category: 'sensor',
     signals: [vcc33, ground(), dout('DOUT'), aout()],
@@ -385,6 +396,7 @@ export const DEVICES = [
   {
     id: 'waveshare-color',
     name: 'Color Sensor (TCS3200)',
+    short: 'Color Sensor',
     tracks: ['student'],
     category: 'sensor',
     signals: [
@@ -403,6 +415,7 @@ export const DEVICES = [
   {
     id: 'waveshare-flame',
     name: 'Flame Sensor',
+    short: 'Flame Sensor',
     tracks: ['student'],
     category: 'sensor',
     signals: [vcc33, ground(), dout('DOUT'), aout()],
@@ -412,6 +425,7 @@ export const DEVICES = [
   {
     id: 'waveshare-hall',
     name: 'Hall Sensor',
+    short: 'Hall Sensor',
     tracks: ['student'],
     category: 'sensor',
     signals: [vcc33, ground(), dout('DOUT'), aout()],
@@ -421,6 +435,7 @@ export const DEVICES = [
   {
     id: 'waveshare-infrared-reflective',
     name: 'Infrared Reflective Sensor',
+    short: 'IR Sensor',
     tracks: ['student'],
     category: 'sensor',
     signals: [vcc33, ground(), dout('DOUT'), aout()],
@@ -430,6 +445,7 @@ export const DEVICES = [
   {
     id: 'waveshare-laser',
     name: 'Laser Sensor',
+    short: 'Laser Sensor',
     tracks: ['student'],
     category: 'sensor',
     signals: [vcc33, ground(), dout('DOUT')],
@@ -439,6 +455,7 @@ export const DEVICES = [
   {
     id: 'waveshare-rotation',
     name: 'Rotation Sensor',
+    short: 'Rotation Sensor',
     tracks: ['student'],
     category: 'sensor',
     signals: [vcc33, ground(), dout('SIA', 'Output A'), dout('SIB', 'Output B'), dout('SW', 'Button')],
@@ -448,6 +465,7 @@ export const DEVICES = [
   {
     id: 'waveshare-sound',
     name: 'Sound Sensor (LM386)',
+    short: 'Sound Sensor',
     tracks: ['student'],
     category: 'sensor',
     signals: [vcc33, ground(), dout('DOUT'), aout()],
@@ -457,6 +475,7 @@ export const DEVICES = [
   {
     id: 'waveshare-dht11',
     name: 'Temperature-Humidity Sensor (DHT11)',
+    short: 'Temp & Humidity Sensor',
     tracks: ['student'],
     category: 'sensor',
     signals: [vcc33, ground(), dout('DOUT', 'Data (single-wire)')],
@@ -466,6 +485,7 @@ export const DEVICES = [
   {
     id: 'waveshare-tilt',
     name: 'Tilt Sensor',
+    short: 'Tilt Sensor',
     tracks: ['student'],
     category: 'sensor',
     signals: [vcc33, ground(), dout('DOUT')],

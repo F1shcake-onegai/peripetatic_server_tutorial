@@ -33,6 +33,7 @@ export default defineConfig({
       routeMiddleware: './src/routeData.js',
       sidebar: [
         { label: 'Home', link: '/' },
+        'setup',
         {
           label: 'General',
           items: ['guide/00-hardware', 'guide/01-raspberry-pi-os', 'guide/02-update', 'guide/03-zram'],

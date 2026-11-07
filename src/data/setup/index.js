@@ -18,3 +18,4 @@ export {
   SETUP_KEY, SETUP_VERSION, SETUP_EVENT, TAB_LABELS, emptySetup, validate, toSelection, keepPins,
   tabChoices, load, save, clear, subscribe, safeLocalStorage,
 } from './store.js';
+export { devicesFor, setBoard, setTrack, toggleDevice, setMode, movePin, resetPins } from './editor.js';

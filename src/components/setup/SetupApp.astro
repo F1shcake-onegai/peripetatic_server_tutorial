@@ -1,0 +1,145 @@
+---
+// The "Your setup" page's app (src/components/setup/setup-app.js).
+---
+
+<div id="pst-setup-app" class="pst-setup not-content">
+  <noscript>This page needs JavaScript. Without it, the tutorial shows everything.</noscript>
+</div>
+
+<script>
+  import { mount } from './setup-app.js';
+
+  const root = document.getElementById('pst-setup-app');
+  if (root) mount(root);
+</script>
+
+<style is:global>
+  .pst-setup {
+    display: grid;
+    gap: 1.25rem;
+    margin-top: 1.5rem;
+  }
+  .pst-setup .pst-group {
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem 1rem;
+    margin: 0;
+  }
+  .pst-setup legend,
+  .pst-setup .pst-legend {
+    font-size: var(--sl-text-h4);
+    font-weight: 600;
+    color: var(--sl-color-white);
+    padding: 0 0.25rem;
+    margin: 0 0 0.5rem;
+  }
+  .pst-setup h3 {
+    font-size: var(--sl-text-base);
+    font-weight: 600;
+    color: var(--sl-color-white);
+    margin: 0.75rem 0 0.25rem;
+  }
+  .pst-setup .pst-choice {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-right: 1.25rem;
+    cursor: pointer;
+  }
+  .pst-setup .pst-device {
+    padding: 0.2rem 0;
+  }
+  .pst-setup .pst-off,
+  .pst-setup .pst-off .pst-name {
+    color: var(--sl-color-gray-3);
+  }
+  .pst-setup .pst-off .pst-choice {
+    cursor: not-allowed;
+  }
+  .pst-setup .pst-reason {
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-red-high);
+    margin-left: 1.6rem;
+  }
+  .pst-setup .pst-modes {
+    font-size: var(--sl-text-sm);
+    margin-left: 1.6rem;
+  }
+  .pst-setup .pst-muted {
+    color: var(--sl-color-gray-3);
+    font-size: var(--sl-text-sm);
+  }
+  .pst-setup .pst-problems {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 0.75rem;
+  }
+  .pst-setup .pst-problems li {
+    padding: 0.35rem 0.6rem;
+    border-radius: 0.3rem;
+    margin-bottom: 0.3rem;
+    font-size: var(--sl-text-sm);
+  }
+  .pst-setup .pst-error {
+    background: var(--sl-color-red-low);
+    color: var(--sl-color-red-high);
+  }
+  .pst-setup .pst-warning {
+    background: var(--sl-color-orange-low);
+    color: var(--sl-color-orange-high);
+  }
+  .pst-setup .pst-note {
+    background: var(--sl-color-gray-6);
+    border-radius: 0.3rem;
+    padding: 0.5rem 0.75rem;
+    margin: 0 0 0.75rem;
+  }
+  .pst-setup .pst-note p,
+  .pst-setup .pst-note ul {
+    margin: 0;
+  }
+  .pst-setup .pst-note ul {
+    padding-left: 1.25rem;
+    margin-top: 0.25rem;
+  }
+  .pst-setup table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: var(--sl-text-sm);
+  }
+  .pst-setup th,
+  .pst-setup td {
+    text-align: left;
+    padding: 0.3rem 0.5rem;
+    border-bottom: 1px solid var(--sl-color-gray-5);
+  }
+  .pst-setup .pst-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
+    align-items: center;
+  }
+  .pst-setup .pst-actions button {
+    font: inherit;
+    padding: 0.4rem 0.9rem;
+    border-radius: 0.4rem;
+    border: 1px solid var(--sl-color-gray-4);
+    background: var(--sl-color-gray-6);
+    color: var(--sl-color-white);
+    cursor: pointer;
+  }
+  .pst-setup .pst-actions #pst-save:not(:disabled) {
+    background: var(--sl-color-accent);
+    border-color: var(--sl-color-accent);
+    color: var(--sl-color-black);
+  }
+  .pst-setup .pst-actions button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .pst-setup .pst-status {
+    margin: 0;
+    flex-basis: 100%;
+    color: var(--sl-color-gray-2);
+  }
+</style>
