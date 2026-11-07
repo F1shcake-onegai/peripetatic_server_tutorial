@@ -1,8 +1,22 @@
 ---
-// The "Your setup" page's app (src/components/setup/setup-app.js).
+// The setup pages' app (src/components/setup/setup-app.js): page 1 "start" (Raspberry Pi
+// and track), page 2 "peripherals", page 3 "pins".
+interface Props {
+  page: 'start' | 'peripherals' | 'pins';
+}
+const { page } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 ---
 
-<div id="pst-setup-app" class="pst-setup not-content">
+<div
+  id="pst-setup-app"
+  class:list={['pst-setup', 'not-content', `pst-page-${page}`]}
+  data-page={page}
+  data-home={`${base}/`}
+  data-start={`${base}/setup/`}
+  data-peripherals={`${base}/setup/peripherals/`}
+  data-pins={`${base}/setup/pins/`}
+>
   <noscript>This page needs JavaScript. Without it, the tutorial shows everything.</noscript>
 </div>
 
@@ -14,174 +28,279 @@
 </script>
 
 <style is:global>
+  /* The pins page needs room for the map and the components side by side */
+  html:has(.pst-page-pins) {
+    --sl-content-width: 67.5rem;
+  }
+
   .pst-setup {
-    display: grid;
-    gap: 1.25rem;
+    --pst-radius: 0.75rem;
     margin-top: 1.5rem;
   }
-  .pst-setup .pst-group {
-    border: 1px solid var(--sl-color-gray-5);
-    border-radius: 0.5rem;
-    padding: 0.75rem 1rem 1rem;
-    margin: 0;
+  .pst-setup .pst-sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
   }
-  .pst-setup legend,
-  .pst-setup .pst-legend {
+  .pst-setup h2 {
     font-size: var(--sl-text-h4);
     font-weight: 600;
     color: var(--sl-color-white);
-    padding: 0 0.25rem;
-    margin: 0 0 0.5rem;
-  }
-  .pst-setup h3 {
-    font-size: var(--sl-text-base);
-    font-weight: 600;
-    color: var(--sl-color-white);
-    margin: 0.75rem 0 0.25rem;
-  }
-  .pst-setup .pst-choice {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    margin-right: 1.25rem;
-    cursor: pointer;
-  }
-  .pst-setup .pst-device {
-    padding: 0.2rem 0;
-  }
-  .pst-setup .pst-off,
-  .pst-setup .pst-off .pst-name {
-    color: var(--sl-color-gray-3);
-  }
-  .pst-setup .pst-off .pst-choice {
-    cursor: not-allowed;
-  }
-  .pst-setup .pst-reason {
-    font-size: var(--sl-text-sm);
-    color: var(--sl-color-red-high);
-    margin-left: 1.6rem;
-  }
-  .pst-setup .pst-modes {
-    font-size: var(--sl-text-sm);
-    margin-left: 1.6rem;
+    margin: 0 0 0.75rem;
   }
   .pst-setup .pst-muted {
     color: var(--sl-color-gray-3);
     font-size: var(--sl-text-sm);
+    margin: 0.25rem 0 0;
   }
-  .pst-setup .pst-problems {
-    list-style: none;
-    padding: 0;
-    margin: 0 0 0.75rem;
-  }
-  .pst-setup .pst-problems li {
-    padding: 0.35rem 0.6rem;
-    border-radius: 0.3rem;
-    margin-bottom: 0.3rem;
-    font-size: var(--sl-text-sm);
-  }
-  .pst-setup .pst-error {
-    background: var(--sl-color-red-low);
-    color: var(--sl-color-red-high);
-  }
-  .pst-setup .pst-warning {
-    background: var(--sl-color-orange-low);
-    color: var(--sl-color-orange-high);
-  }
-  .pst-setup .pst-note {
-    background: var(--sl-color-gray-6);
-    border-radius: 0.3rem;
-    padding: 0.5rem 0.75rem;
-    margin: 0 0 0.75rem;
-  }
-  .pst-setup .pst-note p,
-  .pst-setup .pst-note ul {
-    margin: 0;
-  }
-  .pst-setup .pst-note ul {
-    padding-left: 1.25rem;
-    margin-top: 0.25rem;
-  }
-  .pst-setup table {
-    border-collapse: collapse;
-    width: 100%;
-    font-size: var(--sl-text-sm);
-  }
-  .pst-setup th,
-  .pst-setup td {
-    text-align: left;
-    padding: 0.3rem 0.5rem;
-    border-bottom: 1px solid var(--sl-color-gray-5);
-  }
-  /* Header picture */
-  .pst-setup .pst-picture {
-    margin: 0.5rem 0 1rem;
-  }
-  .pst-setup .pst-picture > * + * {
-    margin-top: 0.6rem;
-  }
-  .pst-setup .pst-chips {
+
+  /* Steps */
+  .pst-setup .pst-steps {
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
-    gap: 0.35rem;
-  }
-  .pst-setup .pst-chip {
-    font: inherit;
+    gap: 0.5rem 1.5rem;
+    list-style: none;
+    padding: 0 0 1rem;
+    margin: 0 0 1.5rem;
+    border-bottom: 1px solid var(--sl-color-gray-5);
     font-size: var(--sl-text-sm);
-    padding: 0.1rem 0.65rem;
-    border-radius: 999px;
-    border: 1px solid var(--sl-color-gray-4);
-    background: transparent;
-    color: var(--sl-color-white);
-    cursor: pointer;
   }
-  .pst-setup .pst-chip[aria-pressed='true'] {
+  .pst-setup .pst-step {
+    display: flex;
+    align-items: center;
+    color: var(--sl-color-gray-3);
+  }
+  .pst-setup .pst-step a {
+    color: var(--sl-color-gray-2);
+    text-decoration: none;
+  }
+  .pst-setup .pst-step a:hover {
+    color: var(--sl-color-white);
+  }
+  .pst-setup .pst-step-current {
+    color: var(--sl-color-white);
+    font-weight: 600;
+  }
+  .pst-setup .pst-step-no {
+    display: inline-grid;
+    place-items: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    margin-right: 0.4rem;
+    border-radius: 50%;
+    border: 1px solid currentColor;
+    font-size: var(--sl-text-xs);
+  }
+  .pst-setup .pst-step-current .pst-step-no {
     background: var(--sl-color-accent);
     border-color: var(--sl-color-accent);
     color: var(--sl-color-black);
   }
-  .pst-setup .pst-pin-details {
-    position: sticky;
-    top: calc(var(--sl-nav-height, 4rem) + 0.5rem);
-    z-index: 1;
-    background: var(--sl-color-bg, var(--sl-color-black));
-    border: 1px solid var(--sl-color-gray-5);
-    border-radius: 0.4rem;
-    padding: 0.5rem 0.75rem;
+
+  .pst-setup .pst-section {
+    margin: 0 0 2rem;
+  }
+
+  /* Page 1: two boxes side by side */
+  .pst-setup .pst-boxes {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+  .pst-setup .pst-box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 5.5rem;
+    padding: 1rem;
+    border: 2px solid var(--sl-color-gray-5);
+    border-radius: var(--pst-radius);
+    background: var(--sl-color-gray-7, var(--sl-color-gray-6));
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s, background-color 0.15s;
+  }
+  .pst-setup .pst-box:hover {
+    border-color: var(--sl-color-gray-3);
+  }
+  .pst-setup .pst-box-title {
+    font-size: var(--sl-text-lg);
+    font-weight: 600;
+    color: var(--sl-color-white);
+  }
+
+  /* Page 2: one box per hardware item */
+  .pst-setup .pst-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+    gap: 0.75rem;
+  }
+  .pst-setup .pst-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.85rem 1rem;
+    border: 2px solid var(--sl-color-gray-5);
+    border-radius: var(--pst-radius);
+    background: var(--sl-color-gray-7, var(--sl-color-gray-6));
+    transition: border-color 0.15s, background-color 0.15s;
+  }
+  .pst-setup .pst-card:not(.pst-off):hover {
+    border-color: var(--sl-color-gray-3);
+  }
+  .pst-setup .pst-card-main {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    cursor: pointer;
+  }
+  .pst-setup .pst-card-title {
+    font-weight: 600;
+    color: var(--sl-color-white);
+    line-height: 1.35;
+  }
+  .pst-setup .pst-card-sub {
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-gray-3);
+  }
+  .pst-setup .pst-card-reason {
+    margin: 0;
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-gray-3);
+  }
+  .pst-setup .pst-card.pst-off {
+    opacity: 0.55;
+  }
+  .pst-setup .pst-card.pst-off .pst-card-main {
+    cursor: not-allowed;
+  }
+  .pst-setup .pst-card.pst-bad {
+    border-color: var(--sl-color-red);
+  }
+  .pst-setup .pst-card.pst-bad .pst-card-reason {
+    color: var(--sl-color-red-high);
+  }
+
+  /* Selected boxes and cards */
+  .pst-setup .pst-box.pst-on,
+  .pst-setup .pst-card.pst-on {
+    border-color: var(--sl-color-accent);
+    background: var(--sl-color-accent-low);
+  }
+  .pst-setup .pst-box:focus-within,
+  .pst-setup .pst-card-main:focus-within {
+    outline: 2px solid var(--sl-color-text-accent);
+    outline-offset: 2px;
+  }
+
+  /* SPI | SDIO inside the ESP32 box */
+  .pst-setup .pst-segments {
+    display: inline-flex;
+    align-self: flex-start;
+    border: 1px solid var(--sl-color-gray-4);
+    border-radius: 0.5rem;
+    overflow: hidden;
     font-size: var(--sl-text-sm);
   }
-  .pst-setup .pst-pin-details p,
-  .pst-setup .pst-pin-details ul {
-    margin: 0;
+  .pst-setup .pst-segment {
+    padding: 0.2rem 0.9rem;
+    cursor: pointer;
+    color: var(--sl-color-gray-2);
   }
-  .pst-setup .pst-pin-details > * + * {
-    margin-top: 0.3rem;
+  .pst-setup .pst-segment + .pst-segment {
+    border-left: 1px solid var(--sl-color-gray-4);
   }
-  .pst-setup .pst-pin-details ul {
-    padding-left: 1.1rem;
+  .pst-setup .pst-segment.pst-on {
+    background: var(--sl-color-accent);
+    color: var(--sl-color-black);
+    font-weight: 600;
   }
-  .pst-setup .pst-move {
+  .pst-setup .pst-segment.pst-off {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  .pst-setup .pst-segment:focus-within {
+    outline: 2px solid var(--sl-color-text-accent);
+    outline-offset: -2px;
+  }
+
+  /* Back / Next / Save */
+  .pst-setup .pst-nav {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.3rem 0.5rem;
+    gap: 0.5rem 0.75rem;
+    margin-top: 1.5rem;
   }
-  .pst-setup .pst-move select {
+  .pst-setup .pst-btn {
     font: inherit;
-    padding: 0.15rem 0.3rem;
-    border-radius: 0.3rem;
+    padding: 0.45rem 1.1rem;
+    border-radius: 0.5rem;
     border: 1px solid var(--sl-color-gray-4);
-    background: var(--sl-color-black);
+    background: transparent;
     color: var(--sl-color-white);
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .pst-setup .pst-btn:hover:not(:disabled) {
+    border-color: var(--sl-color-gray-2);
+  }
+  .pst-setup .pst-btn.pst-primary:not(:disabled) {
+    background: var(--sl-color-accent);
+    border-color: var(--sl-color-accent);
+    color: var(--sl-color-black);
+    font-weight: 600;
+  }
+  .pst-setup .pst-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  .pst-setup .pst-status {
+    flex-basis: 100%;
+    margin: 0;
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-gray-2);
+  }
+
+  /* Page 3: map on the left, components on the right */
+  .pst-setup .pst-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    gap: 1.5rem;
+    align-items: start;
+  }
+  .pst-setup .pst-layout-single {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .pst-setup .pst-map {
+    position: sticky;
+    top: calc(var(--sl-nav-height, 4rem) + 1rem);
+  }
+  @media (max-width: 50rem) {
+    .pst-setup .pst-layout {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .pst-setup .pst-map {
+      position: static;
+    }
+  }
+  .pst-setup .pst-map-title {
+    font-size: var(--sl-text-base);
+    margin-bottom: 0.5rem;
   }
   .pst-setup .pst-header {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto auto minmax(0, 1fr);
     align-items: center;
     gap: 0.25rem 0.4rem;
+    margin-top: 0.5rem;
     padding: 0.6rem 0.5rem;
-    border-radius: 0.5rem;
+    border-radius: var(--pst-radius);
     background: var(--sl-color-gray-6);
     font-size: var(--sl-text-sm);
   }
@@ -191,6 +310,9 @@
     align-items: center;
     gap: 0.1rem 0.4rem;
     min-width: 0;
+    transition: opacity 0.15s;
+  }
+  .pst-setup .pst-label.pst-used {
     cursor: pointer;
   }
   .pst-setup .pst-left {
@@ -219,18 +341,18 @@
     background: var(--sl-color-accent);
     color: var(--sl-color-black);
   }
-  .pst-setup .pst-pin,
+  .pst-setup .pst-hpin,
   .pst-setup .pst-swatch {
-    --pst-pin: var(--sl-color-green);
+    --pst-hpin: var(--sl-color-green);
     --pst-pin-low: var(--sl-color-green-low);
     --pst-pin-high: var(--sl-color-green-high);
     --pst-pin-fill: var(--sl-color-green);
-    border: 2px solid var(--pst-pin);
+    border: 2px solid var(--pst-hpin);
     border-radius: 50%;
     background: var(--pst-pin-low);
     color: var(--pst-pin-high);
   }
-  .pst-setup .pst-pin {
+  .pst-setup .pst-hpin {
     width: 1.9rem;
     height: 1.9rem;
     padding: 0;
@@ -239,56 +361,64 @@
     font-weight: 600;
     font-variant-numeric: tabular-nums;
     cursor: pointer;
+    transition: opacity 0.15s;
   }
   .pst-setup .pst-k-3v3 {
-    --pst-pin: var(--sl-color-orange);
+    --pst-hpin: var(--sl-color-orange);
     --pst-pin-low: var(--sl-color-orange-low);
     --pst-pin-high: var(--sl-color-orange-high);
     --pst-pin-fill: var(--sl-color-orange);
   }
   .pst-setup .pst-k-5v {
-    --pst-pin: var(--sl-color-red);
+    --pst-hpin: var(--sl-color-red);
     --pst-pin-low: var(--sl-color-red-low);
     --pst-pin-high: var(--sl-color-red-high);
     --pst-pin-fill: var(--sl-color-red);
   }
   .pst-setup .pst-k-gnd {
-    --pst-pin: var(--sl-color-gray-3);
+    --pst-hpin: var(--sl-color-gray-3);
     --pst-pin-low: var(--sl-color-gray-5);
     --pst-pin-high: var(--sl-color-white);
     --pst-pin-fill: hsl(224, 6%, 62%);
   }
-  .pst-setup .pst-pin.pst-reserved,
+  .pst-setup .pst-hpin.pst-reserved,
   .pst-setup .pst-swatch.pst-reserved {
-    --pst-pin: var(--sl-color-gray-4);
+    --pst-hpin: var(--sl-color-gray-4);
     --pst-pin-low: transparent;
     --pst-pin-high: var(--sl-color-gray-3);
     border-style: dashed;
   }
-  .pst-setup .pst-pin.pst-used {
+  .pst-setup .pst-hpin.pst-used {
     background: var(--pst-pin-fill);
     color: hsl(224, 10%, 10%);
   }
-  .pst-setup .pst-pin.pst-target {
+  .pst-setup .pst-covered {
+    opacity: 0.35;
+  }
+  .pst-setup .pst-hpin.pst-target {
     border-style: dashed;
     border-color: var(--sl-color-text-accent);
     background: var(--sl-color-accent-low);
     color: var(--sl-color-text-accent);
   }
-  .pst-setup .pst-pin.pst-lit {
+  .pst-setup .pst-label.pst-target .pst-pin-name {
+    color: var(--sl-color-text-accent);
+  }
+  .pst-setup .pst-hpin.pst-lit {
     box-shadow: 0 0 0 3px var(--sl-color-text-accent);
   }
-  .pst-setup .pst-pin.pst-selected {
+  .pst-setup .pst-hpin.pst-selected {
     outline: 3px solid var(--sl-color-white);
     outline-offset: 2px;
   }
   .pst-setup .pst-dim {
-    opacity: 0.35;
+    opacity: 0.25;
   }
   .pst-setup .pst-keys {
     display: flex;
     flex-wrap: wrap;
     gap: 0.25rem 1rem;
+    margin-top: 0.6rem;
     font-size: var(--sl-text-xs);
     color: var(--sl-color-gray-2);
   }
@@ -302,33 +432,87 @@
     width: 0.85rem;
     height: 0.85rem;
   }
-  .pst-setup .pst-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem 0.75rem;
-    align-items: center;
+
+  /* Components */
+  .pst-setup .pst-parts {
+    display: grid;
+    gap: 0.75rem;
   }
-  .pst-setup .pst-actions button {
+  .pst-setup .pst-part {
+    padding: 0.75rem 1rem;
+    border: 2px solid var(--sl-color-gray-5);
+    border-radius: var(--pst-radius);
+    background: var(--sl-color-gray-7, var(--sl-color-gray-6));
+    transition: border-color 0.15s, opacity 0.15s;
+  }
+  .pst-setup .pst-part.pst-part-on {
+    border-color: var(--sl-color-accent);
+  }
+  .pst-setup .pst-part.pst-part-dim {
+    opacity: 0.5;
+  }
+  .pst-setup .pst-part.pst-bad {
+    border-color: var(--sl-color-red);
+  }
+  .pst-setup .pst-part h3 {
+    margin: 0 0 0.4rem;
+    font-size: var(--sl-text-base);
+  }
+  .pst-setup .pst-part-name {
     font: inherit;
-    padding: 0.4rem 0.9rem;
-    border-radius: 0.4rem;
-    border: 1px solid var(--sl-color-gray-4);
-    background: var(--sl-color-gray-6);
+    font-weight: 600;
+    padding: 0.1rem 0.6rem;
+    margin-left: -0.6rem;
+    border: 0;
+    border-radius: 0.5rem;
+    background: transparent;
     color: var(--sl-color-white);
     cursor: pointer;
   }
-  .pst-setup .pst-actions #pst-save:not(:disabled) {
-    background: var(--sl-color-accent);
-    border-color: var(--sl-color-accent);
-    color: var(--sl-color-black);
+  .pst-setup .pst-part-name:hover,
+  .pst-setup .pst-part-name[aria-pressed='true'] {
+    background: var(--sl-color-accent-low);
+    color: var(--sl-color-text-accent);
   }
-  .pst-setup .pst-actions button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+  .pst-setup .pst-part table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--sl-text-sm);
   }
-  .pst-setup .pst-status {
+  .pst-setup .pst-part th,
+  .pst-setup .pst-part td {
+    text-align: left;
+    padding: 0.3rem 0.4rem;
+    border-bottom: 1px solid var(--sl-color-gray-5);
+  }
+  .pst-setup .pst-part th {
+    color: var(--sl-color-gray-3);
+    font-weight: 500;
+  }
+  .pst-setup .pst-part tr:last-child td {
+    border-bottom: 0;
+  }
+  .pst-setup .pst-part tr.pst-row-on td {
+    background: var(--sl-color-accent-low);
+  }
+  .pst-setup .pst-part .pst-row-note td {
+    color: var(--sl-color-gray-3);
+  }
+  .pst-setup .pst-part select {
+    font: inherit;
+    padding: 0.1rem 0.25rem;
+    border-radius: 0.35rem;
+    border: 1px solid var(--sl-color-gray-4);
+    background: var(--sl-color-black);
+    color: var(--sl-color-white);
+  }
+  .pst-setup .pst-problems {
+    list-style: none;
+    padding: 0.5rem 0.75rem;
     margin: 0;
-    flex-basis: 100%;
-    color: var(--sl-color-gray-2);
+    border-radius: var(--pst-radius);
+    background: var(--sl-color-red-low);
+    color: var(--sl-color-red-high);
+    font-size: var(--sl-text-sm);
   }
 </style>

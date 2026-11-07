@@ -54,7 +54,9 @@
  * @property {HeaderCoverage} [header]
  * @property {Uses} [uses]
  * @property {boolean} [unverified]     Not yet checked against the maker's documentation
- * @property {Record<string, {label: string, signals: Signal[]}>} [modes]  Choose one, e.g. SPI or SDIO
+ * @property {string} [protocol]       How it talks to the Pi, for "Not enough GPIO pins for <protocol>"
+ *   (not set for plain digital pins)
+ * @property {Record<string, {label: string, protocol?: string, signals: Signal[]}>} [modes]  Choose one, e.g. SPI or SDIO
  * @property {Signal[]} [signals]
  * @property {Record<string, DevicePin[]>} [pinouts]  The device's own headers, per board revision
  * @property {string[]} sources
@@ -93,6 +95,7 @@ export const DEVICES = [
     modes: {
       spi: {
         label: 'SPI',
+        protocol: 'SPI',
         signals: [
           fixed('cs', 'CS', 'IO10', 8),
           fixed('sclk', 'SCLK', 'IO6', 11),
@@ -106,6 +109,7 @@ export const DEVICES = [
       },
       sdio: {
         label: 'SDIO',
+        protocol: 'SDIO',
         signals: [
           fixed('dat3', 'DAT3', 'IO13', 27),
           fixed('clk', 'CLK', 'IO9', 22),
@@ -243,6 +247,7 @@ export const DEVICES = [
     tracks: ['student'],
     category: 'hat',
     header: { covers: true, passthrough: false },
+    protocol: 'SPI and I2C',
     signals: [
       { id: 'vcc', label: 'Power', devicePin: 'VCC', type: 'power', power: '3v3' },
       ground(),
@@ -271,6 +276,7 @@ export const DEVICES = [
     tracks: ['student'],
     category: 'hat',
     header: { covers: true, passthrough: false },
+    protocol: 'SPI and I2C',
     // Pins from Pimoroni's inky library (inky_e673.py, inky_ac073tc1a.py and
     // examples/spectra6/buttons.py, commit a4264856): the same on the Spectra 6 and the
     // original 7-colour panel.
@@ -358,6 +364,7 @@ export const DEVICES = [
     short: 'GPS Module',
     tracks: ['student'],
     category: 'sensor',
+    protocol: 'UART',
     // u-blox NEO-6 data sheet GPS.G6-HW-09005-E: VCC 2.7-3.6 V for the NEO-6M, digital I/O
     // at VCC level, Serial Port 1 (TxD1/RxD1) at 9600 baud, 8N1, NMEA. On the Raspberry Pi
     // it uses the UART: module TX to Pi RXD (GPIO15), module RX to Pi TXD (GPIO14).

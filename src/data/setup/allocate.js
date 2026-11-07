@@ -47,7 +47,28 @@ import { DEVICES } from './devices.js';
  *   the devices it powers.
  */
 
-/** @typedef {{device?: string, message: string}} Problem */
+/**
+ * @typedef {object} Problem
+ * @property {string} [device]
+ * @property {string} message   '<short name>: <reason>', for the pins page
+ * @property {string} [reason]  Why the device can't be used, for its box
+ * @property {'board' | 'oneOf' | 'connector' | 'covered' | 'twoHats' | 'pins' | 'other'} [code]
+ */
+
+/** Reason shown on a board that sits on the header when the header is already in use */
+export const HAT_REASON = 'Requires installing on top of GPIO headers';
+
+/**
+ * "Not enough GPIO pins for SPI", or without a protocol for plain digital pins.
+ * @param {Device} dev @param {string} [mode]
+ */
+export function notEnoughPins(dev, mode) {
+  const protocol = dev.modes?.[mode ?? Object.keys(dev.modes)[0]]?.protocol ?? dev.protocol;
+  return protocol ? `Not enough GPIO pins for ${protocol}` : 'Not enough GPIO pins';
+}
+
+/** Names of the boards that have something, e.g. 'Raspberry Pi 5' @param {(b: import('./header.js').Board) => boolean} has */
+const boardsWith = (has) => Object.values(BOARDS).filter(has).map((b) => b.name).join(' or ');
 
 /**
  * @typedef {object} Connector   A non-header connector given to a device
@@ -101,6 +122,8 @@ export function allocate(selection, catalog = DEVICES) {
   /** @type {Problem[]} */ const errors = [];
   /** @type {Problem[]} */ const warnings = [];
   /** @type {Assignment[]} */ const assignments = [];
+  /** @param {Device} dev @param {NonNullable<Problem['code']>} code @param {string} reason */
+  const fail = (dev, code, reason) => errors.push({ device: dev.id, code, reason, message: `${dev.short}: ${reason}` });
 
   const board = BOARDS[/** @type {keyof typeof BOARDS} */ (selection.board)];
   if (!board) {
@@ -108,15 +131,15 @@ export function allocate(selection, catalog = DEVICES) {
   }
 
   // Chosen devices in catalog order, so the order of the selection doesn't matter.
-  /** @type {{dev: Device, signals: Signal[]}[]} */
+  /** @type {{dev: Device, signals: Signal[], mode?: string}[]} */
   const chosen = [];
   for (const { id, mode } of selection.devices) {
     const dev = catalog.find((d) => d.id === id);
-    if (!dev) { errors.push({ device: id, message: `Unknown device: ${id}` }); continue; }
-    if (chosen.some((c) => c.dev === dev)) { errors.push({ device: id, message: `${dev.name} is chosen twice.` }); continue; }
+    if (!dev) { errors.push({ device: id, code: 'other', message: `Unknown device: ${id}` }); continue; }
+    if (chosen.some((c) => c.dev === dev)) { fail(dev, 'other', 'Chosen twice'); continue; }
     const signals = signalsOf(dev, mode);
-    if (!signals) { errors.push({ device: id, message: `${dev.name} has no ${mode} option.` }); continue; }
-    chosen.push({ dev, signals });
+    if (!signals) { fail(dev, 'other', `No ${mode} option`); continue; }
+    chosen.push({ dev, signals, mode });
   }
   chosen.sort((a, b) => catalog.indexOf(a.dev) - catalog.indexOf(b.dev));
 
@@ -125,7 +148,7 @@ export function allocate(selection, catalog = DEVICES) {
   for (const { dev } of chosen) {
     if (dev.boards && !dev.boards.includes(selection.board)) {
       const names = dev.boards.map((b) => BOARDS[/** @type {keyof typeof BOARDS} */ (b)]?.name ?? b).join(' or ');
-      errors.push({ device: dev.id, message: `${dev.name} needs a ${names}.` });
+      fail(dev, 'board', dev.uses?.pcie ? `Requires a PCIe connector on ${names}` : `Requires ${names}`);
       wrongBoard.add(dev);
     }
   }
@@ -136,7 +159,7 @@ export function allocate(selection, catalog = DEVICES) {
   for (const { dev } of chosen) {
     if (!dev.oneOf) continue;
     const first = firstOf.get(dev.oneOf);
-    if (first) errors.push({ device: dev.id, message: `Choose one ${dev.oneOf}: ${first.name} or ${dev.name}.` });
+    if (first) fail(dev, 'oneOf', `Only one ${dev.oneOf} is allowed`);
     else firstOf.set(dev.oneOf, dev);
   }
 
@@ -144,14 +167,10 @@ export function allocate(selection, catalog = DEVICES) {
   // connector before cameras, because some connectors only take a camera.
   /** @type {Connector[]} */
   const connectors = [];
-  /** @param {string} one  e.g. 'USB port' @param {number} has */
-  const lacks = (one, has) =>
-    has === 0 ? `the ${board.name} has none`
-      : has === 1 ? `the only ${one} of the ${board.name} is in use`
-        : `all ${has} ${one}s of the ${board.name} are in use`;
   for (const kind of /** @type {const} */ (['pcie', 'usb'])) {
     const has = board[kind];
     const what = kind === 'pcie' ? 'PCIe connector' : 'USB port';
+    const none = kind === 'pcie' ? `Requires a PCIe connector on ${boardsWith((b) => b.pcie > 0)}` : 'Requires a USB port';
     let used = 0;
     for (const { dev } of chosen) {
       if (wrongBoard.has(dev)) continue;
@@ -160,7 +179,7 @@ export function allocate(selection, catalog = DEVICES) {
           used++;
           connectors.push({ device: dev.id, kind, name: kind === 'pcie' ? 'PCIe' : `USB ${used}` });
         } else {
-          errors.push({ device: dev.id, message: `${dev.name} needs ${kind === 'pcie' ? 'a PCIe connector' : 'a USB port'}, but ${lacks(what, has)}.` });
+          fail(dev, 'connector', has === 0 ? none : has === 1 ? `The only ${what} is in use` : `All ${what}s are in use`);
         }
       }
     }
@@ -176,8 +195,13 @@ export function allocate(selection, catalog = DEVICES) {
         if (free) {
           mipiTaken.add(free.name);
           connectors.push({ device: dev.id, kind, name: free.name });
+        } else if (!fits.length) {
+          const short = kind === 'display' ? 'DISP' : 'CAM';
+          fail(dev, 'connector', `Requires a ${short} connector on ${boardsWith((b) => b.mipi.some((m) => m[kind]))}`);
         } else {
-          errors.push({ device: dev.id, message: `${dev.name} needs a ${kind} connector, but ${lacks(`${kind} connector`, fits.length)}.` });
+          // 'CAM/DISP 0' and 'CAM/DISP 1' -> 'CAM/DISP'
+          const name = fits[0].name.replace(/\s*\d+$/, '');
+          fail(dev, 'connector', fits.length === 1 ? `${name} connector is in use` : `${fits.length === 2 ? 'Both' : 'All'} ${name} connectors are in use`);
         }
       }
     }
@@ -187,13 +211,11 @@ export function allocate(selection, catalog = DEVICES) {
   // wired to the header then.
   const covers = (/** @type {Device} */ d) => Boolean(d.header?.covers);
   const tops = chosen.filter((c) => covers(c.dev) && !c.dev.header?.passthrough);
-  for (const extra of tops.slice(1)) {
-    errors.push({ device: extra.dev.id, message: `${extra.dev.name} and ${tops[0].dev.name} both cover the GPIO header; only one of them fits.` });
-  }
+  for (const extra of tops.slice(1)) fail(extra.dev, 'twoHats', HAT_REASON);
   if (tops.length) {
     for (const c of chosen) {
       if (!covers(c.dev) && c.signals.some((s) => s.type !== 'analog')) {
-        errors.push({ device: c.dev.id, message: `${c.dev.name} can't be wired: ${tops[0].dev.name} covers the GPIO header.` });
+        fail(c.dev, 'covered', `GPIO header is covered by ${tops[0].dev.short}`);
       }
     }
   }
@@ -207,16 +229,19 @@ export function allocate(selection, catalog = DEVICES) {
    */
   const take = (dev, s, gpio) => {
     const h = headerPin(gpio);
-    if (!h) return `GPIO${gpio} is not on the 40-pin header.`;
-    if (h.reserved) return `GPIO${gpio} (pin ${h.pin}) is reserved for HAT identification.`;
-    if (s.exclude?.includes(gpio)) return `${dev.name} ${s.label} can't use GPIO${gpio} (pin ${h.pin}).`;
+    if (!h) return `GPIO${gpio} is not on the header`;
+    if (h.reserved) return `GPIO${gpio} is reserved`;
+    if (s.exclude?.includes(gpio)) return `can't use GPIO${gpio}`;
     const u = used.get(gpio);
-    if (u && !(s.bus && u.bus === s.bus)) {
-      return `${dev.name} ${s.label} needs GPIO${gpio} (pin ${h.pin}), which ${u.device.name} already uses for ${u.label}.`;
-    }
+    if (u && !(s.bus && u.bus === s.bus)) return `GPIO${gpio} is used by ${u.device.short} ${u.label}`;
     if (!u) used.set(gpio, { device: dev, label: s.label, bus: s.bus });
     return null;
   };
+  const modeOf = new Map(chosen.map((c) => [c.dev, c.mode]));
+  /** A signal that can't get its pin @param {Device} dev @param {Signal} s @param {string} why */
+  const pinProblem = (dev, s, why) => errors.push({
+    device: dev.id, code: 'pins', reason: notEnoughPins(dev, modeOf.get(dev)), message: `${dev.short} ${s.label}: ${why}`,
+  });
 
   /** @param {Device} dev @param {Signal} s @param {number} gpio @param {Assignment['how']} how */
   const assign = (dev, s, gpio, how) => {
@@ -233,7 +258,7 @@ export function allocate(selection, catalog = DEVICES) {
     for (const s of signals) {
       if (s.type !== 'gpio' || s.fixed === undefined) continue;
       const why = take(dev, s, s.fixed);
-      if (why) errors.push({ device: dev.id, message: why });
+      if (why) pinProblem(dev, s, why);
       else assign(dev, s, s.fixed, 'fixed');
     }
   }
@@ -248,7 +273,7 @@ export function allocate(selection, catalog = DEVICES) {
       const gpio = moved ?? selection.kept?.[key];
       if (gpio === undefined) { notMoved.push({ dev, s }); continue; }
       const why = take(dev, s, gpio);
-      if (why) errors.push({ device: dev.id, message: why });
+      if (why) pinProblem(dev, s, why);
       else assign(dev, s, gpio, moved !== undefined ? 'moved' : 'kept');
     }
   }
@@ -326,13 +351,14 @@ export function allocate(selection, catalog = DEVICES) {
     const placed = assignments.filter((a) => a.device === dev.id && a.pin !== undefined).map((a) => /** @type {number} */ (a.pin));
     const gpios = group(sigs, placed);
     if (!gpios) {
-      errors.push({ device: dev.id, message: `Not enough free GPIO pins for ${dev.name}.` });
+      fail(dev, 'pins', notEnoughPins(dev, modeOf.get(dev)));
       continue;
     }
     sigs.forEach((s, i) => {
       take(dev, s, gpios[i]);
       if (s.default !== undefined) {
-        warnings.push({ device: dev.id, message: `${dev.name} ${s.label} uses GPIO${gpios[i]} instead of GPIO${s.default}, which is taken.` });
+        const reason = `${s.label} is on GPIO${gpios[i]} because GPIO${s.default} is in use`;
+        warnings.push({ device: dev.id, reason, message: `${dev.short} ${reason}` });
       }
       assign(dev, s, gpios[i], 'auto');
     });
@@ -343,13 +369,11 @@ export function allocate(selection, catalog = DEVICES) {
     const analog = signals.filter((s) => s.type === 'analog');
     if (!analog.length) continue;
     if (!signals.some((s) => s.type === 'gpio')) {
-      errors.push({
-        device: dev.id,
-        message: `${dev.name} has only an analog output, and the Raspberry Pi has no analog inputs. It needs an analog-to-digital converter.`,
-      });
+      fail(dev, 'other', 'Raspberry Pi has no analog input');
     } else {
       for (const s of analog) {
-        warnings.push({ device: dev.id, message: `${dev.name} ${s.devicePin} is an analog output; the Raspberry Pi has no analog inputs, so it stays unconnected.` });
+        const reason = `${s.devicePin} not connected: Raspberry Pi has no analog input`;
+        warnings.push({ device: dev.id, reason, message: `${dev.short}: ${reason}` });
       }
     }
   }
@@ -426,6 +450,21 @@ export function allocate(selection, catalog = DEVICES) {
 }
 
 /**
+ * Why a device can't be added, said from that device's side: adding it may make another
+ * device fail (e.g. a board on the header covers a sensor that is already wired).
+ * @param {Device} dev @param {string | undefined} mode @param {Problem[]} added  New errors
+ */
+function reasonFor(dev, mode, added) {
+  const own = added.find((e) => e.device === dev.id);
+  if (own && own.code !== 'pins' && own.code !== 'covered' && own.code !== 'twoHats') return own.reason ?? own.message;
+  if (dev.header?.covers && added.some((e) => e.code === 'covered' || e.code === 'twoHats')) return HAT_REASON;
+  if (own?.code === 'covered') return own.reason ?? own.message;
+  if (added.some((e) => e.code === 'pins')) return notEnoughPins(dev, mode);
+  const first = own ?? added[0];
+  return first.reason ?? first.message;
+}
+
+/**
  * For every device that isn't chosen: can it be added, and if not, why.
  * A device with modes (SPI/SDIO) is available when at least one mode fits.
  * @param {Selection} selection
@@ -444,7 +483,7 @@ export function availability(selection, catalog = DEVICES) {
     for (const mode of modes) {
       const r = allocate({ ...selection, devices: [...selection.devices, { id: dev.id, ...(mode ? { mode } : {}) }] }, catalog);
       const added = r.errors.filter((e) => !before.has(e.message));
-      perMode[mode ?? ''] = added.length ? { ok: false, reason: added[0].message } : { ok: true };
+      perMode[mode ?? ''] = added.length ? { ok: false, reason: reasonFor(dev, mode, added) } : { ok: true };
     }
     const fits = Object.values(perMode).filter((m) => m.ok);
     out[dev.id] = fits.length ? { ok: true } : { ok: false, reason: Object.values(perMode)[0].reason };

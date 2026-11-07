@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   SETUP_KEY, SETUP_EVENT, TAB_LABELS, emptySetup, validate, toSelection, keepPins, tabChoices,
-  load, save, clear, subscribe, allocate,
+  load, save, clear, subscribe, allocate, DRAFT_KEY, loadDraft, saveDraft, clearDraft,
 } from '../src/data/setup/index.js';
 
 const ESP = 'esp32-c5-devkitc-1';
@@ -160,4 +160,18 @@ test('subscribe: hears saves in this tab and changes from other tabs', () => {
   } finally {
     globalThis.window = previous;
   }
+});
+
+test('the draft between setup pages: kept, checked and cleared apart from the saved setup', () => {
+  const session = new MemoryStorage();
+  const local = new MemoryStorage();
+  assert.equal(loadDraft(session), null);
+  const draft = setupWith({ track: 'student', devices: [{ id: 'waveshare-tilt' }, { id: 'nope' }] });
+  saveDraft(session, draft);
+  assert.deepEqual(loadDraft(session)?.devices, [{ id: 'waveshare-tilt' }]);
+  assert.equal(load(local), null, 'a draft is never the saved setup');
+  clearDraft(session);
+  assert.equal(loadDraft(session), null);
+  session.setItem(DRAFT_KEY, '{broken');
+  assert.equal(loadDraft(session), null);
 });

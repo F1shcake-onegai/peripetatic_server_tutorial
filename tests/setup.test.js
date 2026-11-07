@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  HEADER, BOARDS, GPIO_PREFERENCE, GPIO_TIERS, pinOfGpio, pinDistance, DEVICES, allocate, availability, moveOptions, signalsOf,
+  HEADER, BOARDS, GPIO_PREFERENCE, GPIO_TIERS, pinOfGpio, pinDistance, DEVICES, allocate, availability, moveOptions, signalsOf, HAT_REASON,
 } from '../src/data/setup/index.js';
 
 const ESP = 'esp32-c5-devkitc-1';
@@ -137,21 +137,22 @@ test('moving Handshake to GPIO5 puts it on pin 29', () => {
 
 test('moving a control pin onto SPI0, a reserved GPIO, a moved pin or off the header fails', () => {
   const sel = (gpio) => ({ board: 'rpi5', devices: [{ id: ESP, mode: 'spi' }], moved: { [`${ESP}.handshake`]: gpio } });
-  assert.match(allocate(sel(9)).errors[0].message, /can't use GPIO9/);
-  assert.match(allocate(sel(0)).errors[0].message, /reserved for HAT identification/);
-  assert.match(allocate(sel(40)).errors[0].message, /not on the 40-pin header/);
+  assert.equal(allocate(sel(9)).errors[0].message, "ESP32-C5 Handshake: can't use GPIO9");
+  assert.equal(allocate(sel(0)).errors[0].message, 'ESP32-C5 Handshake: GPIO0 is reserved');
+  assert.equal(allocate(sel(40)).errors[0].message, 'ESP32-C5 Handshake: GPIO40 is not on the header');
+  assert.equal(allocate(sel(9)).errors[0].reason, 'Not enough GPIO pins for SPI');
   const both = allocate({
     board: 'rpi5', devices: [{ id: ESP, mode: 'spi' }],
     moved: { [`${ESP}.handshake`]: 5, [`${ESP}.dataready`]: 5 },
   });
-  assert.match(both.errors[0].message, /needs GPIO5 \(pin 29\), which ESP32-C5-DevKitC-1 already uses for Handshake/);
+  assert.equal(both.errors[0].message, 'ESP32-C5 Data Ready: GPIO5 is used by ESP32-C5 Handshake');
 });
 
 test('a moved pin wins over a default: the default signal moves on, with a warning', () => {
   const r = allocate({ board: 'rpi5', devices: [{ id: ESP, mode: 'spi' }], moved: { [`${ESP}.handshake`]: 27 } });
   assert.ok(r.ok);
   assert.deepEqual([pinsOf(r, ESP).handshake, pinsOf(r, ESP).dataready], [13, 29]);
-  assert.match(r.warnings[0].message, /Data Ready uses GPIO5 instead of GPIO27/);
+  assert.equal(r.warnings[0].reason, 'Data Ready is on GPIO5 because GPIO27 is in use');
 });
 
 test('two control pins can swap', () => {
@@ -273,7 +274,7 @@ test('the whole Sensors Pack fits beside the ESP32 over SPI (24 of 26 GPIOs)', (
 
 const CATALOG_WITH = (...extra) => [...DEVICES, ...extra];
 const needs = (id, n) => ({
-  id, name: id, track: 'student', category: 'sensor', sources: ['test'],
+  id, name: id, short: id, track: 'student', category: 'sensor', sources: ['test'],
   signals: Array.from({ length: n }, (_, i) => ({ id: `s${i}`, label: `S${i}`, devicePin: `S${i}`, type: 'gpio' })),
 });
 
@@ -282,7 +283,7 @@ test('a device that no longer fits is greyed out with the reason', () => {
   const catalog = CATALOG_WITH(needs('two-pins', 2), needs('three-pins', 3));
   const av = availability(sel, catalog);
   assert.equal(av['two-pins'].ok, true);
-  assert.deepEqual(av['three-pins'], { ok: false, reason: 'Not enough free GPIO pins for three-pins.' });
+  assert.deepEqual(av['three-pins'], { ok: false, reason: 'Not enough GPIO pins' });
 });
 
 test('SDIO takes GPIO 22-27: a module that needs GPIO22 is greyed out (with SPI, Handshake makes room)', () => {
@@ -290,7 +291,10 @@ test('SDIO takes GPIO 22-27: a module that needs GPIO22 is greyed out (with SPI,
   const catalog = CATALOG_WITH(fixed22);
   assert.equal(availability({ board: 'rpi5', devices: [{ id: ESP, mode: 'spi' }] }, catalog)['needs-gpio22'].ok, true);
   const av = availability({ board: 'rpi5', devices: [{ id: ESP, mode: 'sdio' }] }, catalog)['needs-gpio22'];
-  assert.match(av.reason, /GPIO22 \(pin 15\), which ESP32-C5-DevKitC-1 already uses for CLK/);
+  assert.equal(av.reason, 'Not enough GPIO pins');
+  // From the ESP32's side: SDIO doesn't fit next to a module on GPIO22
+  const esp = availability({ board: 'rpi5', devices: [{ id: 'needs-gpio22' }] }, catalog)[ESP];
+  assert.equal(esp.modes?.sdio.reason, 'Not enough GPIO pins for SDIO');
 });
 
 test('ESP32 modes are checked one by one', () => {
@@ -304,7 +308,8 @@ test('ESP32 modes are checked one by one', () => {
 test('AI HAT+ 2 needs a Raspberry Pi 5', () => {
   assert.equal(allocate({ board: 'rpi5', devices: [{ id: 'ai-hat-plus-2' }] }).ok, true);
   const r = allocate({ board: 'rpi-zero-2-w', devices: [{ id: 'ai-hat-plus-2' }] });
-  assert.deepEqual(r.errors.map((e) => e.message), ['AI HAT+ 2 needs a Raspberry Pi 5.']);
+  assert.deepEqual(r.errors.map((e) => e.reason), ['Requires a PCIe connector on Raspberry Pi 5']);
+  assert.equal(availability({ board: 'rpi-zero-2-w', devices: [] })['ai-hat-plus-2'].reason, 'Requires a PCIe connector on Raspberry Pi 5');
 });
 
 const usesHeader = (d) => Boolean(d.header) || (d.modes ? true : d.signals.some((s) => s.type !== 'analog'));
@@ -315,13 +320,19 @@ test('a board covering the header leaves nothing to wire; ribbon-cable devices s
     for (const d of DEVICES.filter((x) => x.id !== hat)) {
       assert.equal(av[d.id].ok, !usesHeader(d), `${d.id} with ${hat}`);
     }
-    assert.match(av[ESP].reason, /can't be wired: .* covers the GPIO header/);
+    const short = DEVICES.find((d) => d.id === hat)?.short;
+    assert.equal(av[ESP].reason, `GPIO header is covered by ${short}`);
+    assert.equal(av['waveshare-tilt'].reason, `GPIO header is covered by ${short}`);
   }
+  // From the board's side: wired modules or another board are already on the header
+  assert.equal(availability({ board: 'rpi5', devices: [{ id: 'waveshare-tilt' }] })['waveshare-2in13-touch-epaper-hat'].reason, HAT_REASON);
+  assert.equal(availability({ board: 'rpi5', devices: [{ id: 'pimoroni-inky-impression-7in3' }] })['waveshare-2in13-touch-epaper-hat'].reason, HAT_REASON);
+  assert.equal(availability({ board: 'rpi5', devices: [{ id: 'waveshare-2in13-touch-epaper-hat' }] })['pimoroni-inky-impression-7in3'].reason, HAT_REASON);
 });
 
 test('only one board without extension pins fits on the header', () => {
   const r = allocate({ board: 'rpi5', devices: [{ id: 'ai-hat-plus-2' }, { id: 'waveshare-2in13-touch-epaper-hat' }] });
-  assert.match(r.errors[0].message, /both cover the GPIO header/);
+  assert.equal(r.errors[0].message, 'e-Paper HAT: Requires installing on top of GPIO headers');
 });
 
 test('a board with extension pins (e.g. a battery HAT) stacks under one that covers the header', () => {
@@ -345,14 +356,14 @@ test('an analog-only sensor needs an analog-to-digital converter', () => {
   const analogOnly = { ...needs('analog-only', 0), signals: [{ id: 'aout', label: 'Analog output', devicePin: 'AOUT', type: 'analog' }] };
   const av = availability({ board: 'rpi5', devices: [] }, CATALOG_WITH(analogOnly))['analog-only'];
   assert.equal(av.ok, false);
-  assert.match(av.reason, /needs an analog-to-digital converter/);
+  assert.equal(av.reason, 'Raspberry Pi has no analog input');
 });
 
 test('a sensor with both outputs is wired by its digital output only', () => {
   const r = allocate({ board: 'rpi5', devices: [{ id: 'waveshare-sound' }] });
   assert.ok(r.ok);
   assert.deepEqual(Object.keys(pinsOf(r, 'waveshare-sound')).sort(), ['dout', 'gnd', 'vcc']);
-  assert.match(r.warnings[0].message, /AOUT is an analog output/);
+  assert.equal(r.warnings[0].reason, 'AOUT not connected: Raspberry Pi has no analog input');
 });
 
 test('signalsOf picks a mode', () => {
@@ -385,19 +396,23 @@ test('AI HAT+ 2 takes the PCIe connector; the camera and the display take the tw
 test('a third camera or display does not fit on a Raspberry Pi 5', () => {
   const two = { ...needs('second-camera', 0), category: 'camera', uses: { camera: 1 } };
   const r = allocate({ board: 'rpi5', devices: [{ id: 'rpi-camera-module-3' }, { id: 'freenove-5in-dsi' }, { id: 'second-camera' }] }, CATALOG_WITH(two));
-  assert.deepEqual(r.errors.map((e) => e.message), ['second-camera needs a camera connector, but all 2 camera connectors of the Raspberry Pi 5 are in use.']);
+  assert.deepEqual(r.errors.map((e) => e.reason), ['Both CAM/DISP connectors are in use']);
 });
 
 test('Raspberry Pi Zero 2 W: a camera fits, a display does not', () => {
   assert.ok(allocate({ board: 'rpi-zero-2-w', devices: [{ id: 'rpi-camera-module-3' }] }).ok);
   const r = allocate({ board: 'rpi-zero-2-w', devices: [{ id: 'freenove-5in-dsi' }] });
-  assert.deepEqual(r.errors.map((e) => e.message), ['Freenove 5" IPS display (FNK0078) needs a display connector, but the Raspberry Pi Zero 2 W has none.']);
+  assert.deepEqual(r.errors.map((e) => e.reason), ['Requires a DISP connector on Raspberry Pi 5']);
+  // The Zero 2 W's one connector, taken by a camera
+  const two = { ...needs('second-camera', 0), category: 'camera', uses: { camera: 1 } };
+  const z = allocate({ board: 'rpi-zero-2-w', devices: [{ id: 'rpi-camera-module-3' }, { id: 'second-camera' }] }, CATALOG_WITH(two));
+  assert.deepEqual(z.errors.map((e) => e.reason), ['Camera connector is in use']);
 });
 
 test('Raspberry Pi Zero 2 W: the ESP32 takes its only USB port', () => {
   const usb = { ...needs('usb-thing', 0), uses: { usb: 1 } };
   const av = availability({ board: 'rpi-zero-2-w', devices: [{ id: ESP, mode: 'spi' }] }, CATALOG_WITH(usb));
-  assert.equal(av['usb-thing'].reason, 'usb-thing needs a USB port, but the only USB port of the Raspberry Pi Zero 2 W is in use.');
+  assert.equal(av['usb-thing'].reason, 'The only USB port is in use');
   assert.ok(availability({ board: 'rpi5', devices: [{ id: ESP, mode: 'spi' }] }, CATALOG_WITH(usb))['usb-thing'].ok);
 });
 
@@ -440,14 +455,14 @@ test('Wi-Fi dongle: one USB port, no header pins', () => {
 
 test('second network interface: the ESP32 or the Wi-Fi dongle, not both', () => {
   const r = allocate({ board: 'rpi5', devices: [{ id: ESP, mode: 'spi' }, { id: 'wifi-dongle' }] });
-  assert.deepEqual(r.errors.map((e) => e.message), ['Choose one second network interface: ESP32-C5-DevKitC-1 or Plug-and-play Wi-Fi dongle.']);
-  assert.match(availability({ board: 'rpi5', devices: [{ id: 'wifi-dongle' }] })[ESP].reason, /Choose one second network interface/);
-  assert.match(availability({ board: 'rpi5', devices: [{ id: ESP, mode: 'spi' }] })['wifi-dongle'].reason, /Choose one second network interface/);
+  assert.deepEqual(r.errors.map((e) => e.reason), ['Only one second network interface is allowed']);
+  assert.equal(availability({ board: 'rpi5', devices: [{ id: 'wifi-dongle' }] })[ESP].reason, 'Only one second network interface is allowed');
+  assert.equal(availability({ board: 'rpi5', devices: [{ id: ESP, mode: 'spi' }] })['wifi-dongle'].reason, 'Only one second network interface is allowed');
 });
 
 test('Raspberry Pi Zero 2 W: the Wi-Fi dongle takes its only USB port; the ESP32 is greyed out for being a second interface', () => {
   const r = allocate({ board: 'rpi-zero-2-w', devices: [{ id: 'wifi-dongle' }] });
   assert.ok(r.ok);
   assert.deepEqual(r.connectors.map((c) => [c.device, c.name]), [['wifi-dongle', 'USB 1']]);
-  assert.match(availability({ board: 'rpi-zero-2-w', devices: [{ id: 'wifi-dongle' }] })[ESP].reason, /^Choose one second network interface/);
+  assert.equal(availability({ board: 'rpi-zero-2-w', devices: [{ id: 'wifi-dongle' }] })[ESP].reason, 'Only one second network interface is allowed');
 });

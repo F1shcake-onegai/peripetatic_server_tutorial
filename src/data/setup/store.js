@@ -237,3 +237,51 @@ export function safeLocalStorage() {
     return undefined;
   }
 }
+
+// The setup pages (/setup/, /setup/peripherals/, /setup/pins/) carry the setup being
+// edited from page to page in sessionStorage until it is saved. The tutorial only ever
+// reads the saved setup, so an unsaved draft never changes what it shows.
+export const DRAFT_KEY = 'pst-setup-draft';
+
+/** sessionStorage, or undefined where the browser blocks it. */
+export function safeSessionStorage() {
+  try {
+    return typeof sessionStorage === 'undefined' ? undefined : sessionStorage;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * The setup being edited, or null when there is none.
+ * @param {Storage | undefined} storage  sessionStorage
+ * @param {Device[]} [catalog]
+ * @returns {Setup | null}
+ */
+export function loadDraft(storage, catalog = DEVICES) {
+  try {
+    const text = storage?.getItem(DRAFT_KEY);
+    return text ? validate(JSON.parse(text), catalog) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** @param {Storage | undefined} storage @param {Setup} setup @param {Device[]} [catalog] */
+export function saveDraft(storage, setup, catalog = DEVICES) {
+  const clean = validate(setup, catalog);
+  try {
+    if (clean) storage?.setItem(DRAFT_KEY, JSON.stringify(clean));
+  } catch {
+    // blocked storage: the draft lives only as long as the page
+  }
+}
+
+/** @param {Storage | undefined} storage */
+export function clearDraft(storage) {
+  try {
+    storage?.removeItem(DRAFT_KEY);
+  } catch {
+    // blocked storage: nothing to clear
+  }
+}

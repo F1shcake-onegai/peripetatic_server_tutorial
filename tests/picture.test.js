@@ -36,8 +36,8 @@ test('breadboard rails: one badge per rail pin instead of a badge per module', (
   assert.ok(result.breadboard.required);
   const views = pinViews(toSelection(setup), result);
   const rail = result.breadboard.rails[0];
-  assert.equal(views[rail.supply - 1].badge, 'Breadboard 3V3 rail (+) · 3 modules');
-  assert.equal(views[rail.ground - 1].badge, 'Breadboard 3V3 rail (−) · 3 modules');
+  assert.equal(views[rail.supply - 1].badge, '3V3 rail (+)');
+  assert.equal(views[rail.ground - 1].badge, '3V3 rail (−)');
   assert.deepEqual(views[rail.supply - 1].rail, { rail: '3v3', side: '+', devices: rail.devices });
   // No module badge on any power or ground pin
   assert.ok(views.filter((v) => v.kind !== 'gpio').every((v) => !v.users.length));

@@ -1,7 +1,7 @@
 // @ts-check
 // What the setup page's header picture shows on each of the 40 pins: the pin's name and
 // kind, and who uses it. Power and ground wired to breadboard rails show one rail badge
-// ("Breadboard 3V3 rail (+) · 3 modules") instead of a badge per module.
+// ("3V3 rail (+)") instead of a badge per module.
 import { HEADER } from './header.js';
 import { DEVICES } from './devices.js';
 import { signalsOf } from './allocate.js';
@@ -100,7 +100,7 @@ export function pinViews(selection, result, catalog = DEVICES) {
     }
 
     const badge = rail
-      ? `Breadboard ${RAIL_NAMES[rail.rail]} rail (${rail.side}) · ${modules(rail.devices.length)}${users.length ? ` + ${badgeOf(users)}` : ''}`
+      ? `${RAIL_NAMES[rail.rail]} rail (${rail.side})${users.length ? ` + ${badgeOf(users)}` : ''}`
       : badgeOf(users);
 
     return {

@@ -12,10 +12,11 @@
 //   then its data pins straight to their GPIOs.
 export { HEADER, BOARDS, GPIO_TIERS, GPIO_PREFERENCE, pinOfGpio, pinDistance } from './header.js';
 export { DEVICES } from './devices.js';
-export { allocate, availability, moveOptions, signalsOf } from './allocate.js';
+export { allocate, availability, moveOptions, signalsOf, notEnoughPins, HAT_REASON } from './allocate.js';
 export {
   SETUP_KEY, SETUP_VERSION, SETUP_EVENT, TAB_LABELS, emptySetup, validate, toSelection, keepPins,
-  tabChoices, load, save, clear, subscribe, safeLocalStorage,
+  tabChoices, load, save, clear, subscribe, safeLocalStorage, DRAFT_KEY, safeSessionStorage, loadDraft, saveDraft,
+  clearDraft,
 } from './store.js';
 export { devicesFor, setBoard, setTrack, toggleDevice, setMode, movePin, moveSignal, resetPins } from './editor.js';
 export { pinViews, RAIL_NAMES } from './picture.js';
