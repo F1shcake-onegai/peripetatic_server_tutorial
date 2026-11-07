@@ -4,7 +4,8 @@
 //
 // Breadboard rule (allocate.js; the header has only two 3V3, two 5V and eight GND pins):
 // - More than 2 devices on 3V3, or more than 2 on 5V (2 pins each): the breadboard is
-//   required, and those modules get their power from its rails.
+//   required. Modules on a supply with 2 or more get their power from its rails; a module
+//   alone on its supply is wired straight to the header.
 // - Otherwise: the breadboard step is shown, marked "(optional)".
 // - Students are never asked whether they have a breadboard.
 // - Not counted: boards on the header, the USB-powered ESP32, and ribbon or USB devices.
