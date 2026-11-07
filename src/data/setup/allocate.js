@@ -2,7 +2,8 @@
 // Assigns Raspberry Pi header pins to the chosen hardware, and works out which hardware
 // can still be added. The same selection always gives the same result.
 //
-// Order: fixed GPIOs, then GPIOs the viewer moved, then defaults, then free GPIOs, kept
+// Order: fixed GPIOs, then GPIOs the viewer moved or kept from a saved setup, then
+// defaults, then free GPIOs, kept
 // close together for each device (plain pins first, see GPIO_TIERS); then the power and
 // ground pins nearest each device's GPIOs. A board that covers the header without
 // extension pins leaves no pins to wire anything else to.
@@ -17,6 +18,8 @@ import { DEVICES } from './devices.js';
  * @property {string} board                     'rpi5' or 'rpi-zero-2-w'
  * @property {{id: string, mode?: string}[]} devices
  * @property {Record<string, number>} [moved]   'deviceId.signalId' -> GPIO the viewer chose
+ * @property {Record<string, number>} [kept]    'deviceId.signalId' -> GPIO given when the setup
+ *   was saved, so a module added later never moves one that is already wired. `moved` wins.
  */
 
 /**
@@ -28,7 +31,7 @@ import { DEVICES } from './devices.js';
  * @property {'gpio' | 'power' | 'ground'} type
  * @property {number} [pin]      Physical header pin (not set for a board that sits on the header)
  * @property {number} [gpio]
- * @property {'fixed' | 'moved' | 'default' | 'auto' | 'header'} how
+ * @property {'fixed' | 'moved' | 'kept' | 'default' | 'auto' | 'header'} how
  * @property {boolean} [shared]  The pin is also used by another device
  */
 
@@ -220,16 +223,18 @@ export function allocate(selection, catalog = DEVICES) {
     }
   }
 
-  // 2. GPIOs the viewer moved (before any default, so a move always wins)
+  // 2. GPIOs the viewer moved, or kept from a saved setup (before any default)
   /** @type {{dev: Device, s: Signal}[]} */
   const notMoved = [];
   for (const { dev, signals } of chosen) {
     for (const s of signals.filter(isMovable)) {
-      const moved = selection.moved?.[`${dev.id}.${s.id}`];
-      if (moved === undefined) { notMoved.push({ dev, s }); continue; }
-      const why = take(dev, s, moved);
+      const key = `${dev.id}.${s.id}`;
+      const moved = selection.moved?.[key];
+      const gpio = moved ?? selection.kept?.[key];
+      if (gpio === undefined) { notMoved.push({ dev, s }); continue; }
+      const why = take(dev, s, gpio);
       if (why) errors.push({ device: dev.id, message: why });
-      else assign(dev, s, moved, 'moved');
+      else assign(dev, s, gpio, moved !== undefined ? 'moved' : 'kept');
     }
   }
 

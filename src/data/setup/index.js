@@ -1,12 +1,6 @@
 // @ts-check
-// GPIO planner data and logic (step 1 of the interactive setup). Nothing on the site uses
-// it yet. Tests: npm test
-//
-// For step 2 (saving the setup), not done yet:
-// - Save the pins each module was given, so a module added later only takes free pins
-//   and modules that are already wired never move.
-// - Students can change GPIOs by hand; save those moves and pass them to allocate() as
-//   `moved`.
+// GPIO planner data and logic (step 1) and the saved setup (step 2, store.js).
+// Tests: npm test
 //
 // Breadboard rule, not done yet (the header has only two 3V3, two 5V and eight GND pins):
 // - More than 2 devices on 3V3, or more than 2 on 5V (2 pins each): the breadboard is
@@ -20,3 +14,7 @@
 export { HEADER, BOARDS, GPIO_TIERS, GPIO_PREFERENCE, pinOfGpio, pinDistance } from './header.js';
 export { DEVICES } from './devices.js';
 export { allocate, availability, moveOptions, signalsOf } from './allocate.js';
+export {
+  SETUP_KEY, SETUP_VERSION, SETUP_EVENT, TAB_LABELS, emptySetup, validate, toSelection, keepPins,
+  tabChoices, load, save, clear, subscribe, safeLocalStorage,
+} from './store.js';
