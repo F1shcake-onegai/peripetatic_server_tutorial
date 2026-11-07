@@ -1,0 +1,16 @@
+---
+// A pin value that follows the viewer's setup (src/data/setup/pins.js).
+//   <Pin signal="esp32-c5-devkitc-1.handshake" show="pin" />   → 15 (physical pin)
+//   <Pin signal="esp32-c5-devkitc-1.handshake" show="gpio" />  → 22 (BCM GPIO number)
+import { defaultAssignment, formatPin } from '../data/setup/pins.js';
+
+interface Props {
+  signal: string;
+  show: 'pin' | 'gpio';
+}
+
+const { signal, show } = Astro.props;
+const text = formatPin(defaultAssignment(signal), show);
+---
+
+<span class="pst-pin" data-pin={signal} data-show={show}>{text}</span>

@@ -3,6 +3,7 @@ import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import { unified } from '@astrojs/markdown-remark';
 import remarkStepHeadings from './plugins/remark-step-headings.mjs';
+import { pluginPinPlaceholders } from './plugins/ec-pin-placeholders.mjs';
 
 export default defineConfig({
   site: 'https://f1shcake-onegai.github.io',
@@ -19,6 +20,8 @@ export default defineConfig({
   integrations: [
     starlight({
       title: 'Peripatetic Server Tutorial',
+      // Pin placeholders in code blocks follow the viewer's setup (src/data/setup/pins.js)
+      expressiveCode: { plugins: [pluginPinPlaceholders()] },
       customCss: ['./src/styles/steps.css', './src/styles/keys.css'],
       components: {
         // Marks every page with the viewer's saved setup (src/data/setup/visibility.js)

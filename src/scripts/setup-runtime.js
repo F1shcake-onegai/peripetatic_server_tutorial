@@ -1,8 +1,13 @@
 // @ts-check
-// Runs on every page after it loads, and again whenever the setup changes in another tab.
-// "On this page" entries whose heading the setup hides are hidden too. Headings in tabs
-// the viewer can still switch stay listed.
-import { SETUP_KEY } from '../data/setup/store.js';
+// Runs on every page after it loads:
+// - "On this page" entries whose heading the setup hides are hidden too. Headings in tabs
+//   the viewer can still switch stay listed.
+// - Previous/Next skip pages that aren't part of the setup.
+// - Pin values (<Pin> and code placeholders, src/data/setup/pins.js) show the viewer's pins.
+// When another tab changes the setup, the page reloads.
+import { SETUP_KEY, load, safeLocalStorage, toSelection } from '../data/setup/store.js';
+import { allocate } from '../data/setup/allocate.js';
+import { formatPin } from '../data/setup/pins.js';
 
 /** Hidden by the setup: inside a hidden <Only>, or a tab group whose tab bar is hidden. */
 function hiddenBySetup(/** @type {Element} */ el) {
@@ -45,8 +50,34 @@ function fixPagination() {
   }
 }
 
+/** Swap in the viewer's pins; code blocks also get their copy-button text updated. */
+function fillPins() {
+  const setup = load(safeLocalStorage());
+  if (!setup) return;
+  const result = allocate(toSelection(setup));
+  const byKey = new Map(result.assignments.filter((a) => a.pin !== undefined).map((a) => [`${a.device}.${a.signal}`, a]));
+  /** @type {Set<Element>} */
+  const changed = new Set();
+  for (const el of /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.pst-pin[data-pin]'))) {
+    const a = byKey.get(el.dataset.pin ?? '');
+    if (!a) continue; // device not in the setup: keep the default
+    const text = formatPin(a, el.dataset.show ?? 'pin');
+    if (el.textContent === text) continue;
+    el.textContent = text;
+    const figure = el.closest('figure');
+    if (figure) changed.add(figure);
+  }
+  for (const figure of changed) {
+    const button = /** @type {HTMLElement | null} */ (figure.querySelector('button[data-code]'));
+    if (!button) continue;
+    const lines = [...figure.querySelectorAll('.ec-line .code')].map((c) => (c.textContent ?? '').replace(/\n$/, ''));
+    button.dataset.code = lines.join('\u007f');
+  }
+}
+
 tidyContents();
 fixPagination();
+fillPins();
 // Another tab changed the setup: marks on <html> are set by the <head> script on the next
 // load, so reload to show the new setup everywhere at once.
 window.addEventListener('storage', (e) => {
