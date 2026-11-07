@@ -16,7 +16,8 @@ export { allocate, availability, moveOptions, signalsOf, notEnoughPins, HAT_REAS
 export {
   SETUP_KEY, SETUP_VERSION, SETUP_EVENT, TAB_LABELS, emptySetup, validate, toSelection, keepPins,
   tabChoices, load, save, clear, subscribe, safeLocalStorage, DRAFT_KEY, safeSessionStorage, loadDraft, saveDraft,
-  clearDraft,
+  clearDraft, TRACK_BOARDS, trackFits,
 } from './store.js';
 export { devicesFor, setBoard, setTrack, toggleDevice, setMode, movePin, moveSignal, resetPins } from './editor.js';
 export { pinViews, RAIL_NAMES } from './picture.js';
+export { wiringSteps } from './wiring.js';

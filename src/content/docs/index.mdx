@@ -5,9 +5,21 @@ title: "Peripatetic Server Tutorial"
 import { LinkButton } from '@astrojs/starlight/components';
 import Only from '../../components/Only.astro';
 
-Everyone starts with the general chapters 0–3, then continues with the track for their setup.
+<Only setup={false}>
 
-<Only inline track="student"><LinkButton href="guide/04-second-interface/" variant="secondary">Student Kit</LinkButton></Only> <Only inline track="server"><LinkButton href="guide/04-ai-hat/" variant="secondary">School Server</LinkButton></Only>
+Choose your Raspberry Pi, track and hardware so the tutorial shows only what applies to you.
+
+<LinkButton href="setup/">Your setup</LinkButton>
+
+</Only>
+
+<Only setup>
+
+The tutorial follows your setup.
+
+<LinkButton href="setup/" variant="secondary">Modify your setup</LinkButton>
+
+</Only>
 
 ### General
 

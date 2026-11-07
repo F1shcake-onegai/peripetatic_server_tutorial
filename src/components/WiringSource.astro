@@ -1,0 +1,22 @@
+---
+// Marks chapter 0 content that the wiring steps reuse (src/components/setup/page-wiring.js).
+// It doesn't change how the content looks. Several blocks with the same id are joined in
+// page order; a heading among them becomes the step's title.
+//
+//   <WiringSource id="power-off" inline>…</WiringSource>   the first step
+//   <WiringSource id="ai-hat-plus-2" steps>…</WiringSource>
+//       a part: replaces its plain step; with `steps`, each item of the list is a step
+//   <WiringSource id="esp32-c5-devkitc-1">…</WiringSource>
+//       a wired module: a step before its wires
+//   <WiringSource id="esp32-c5-devkitc-1:spi">…</WiringSource>   added to that step in this mode
+interface Props {
+  id: string;
+  steps?: boolean;
+  inline?: boolean;
+}
+
+const { id, steps, inline } = Astro.props;
+const Tag = inline ? 'span' : 'div';
+---
+
+<Tag class="pst-only" data-wiring-source={id} data-wiring-steps={steps ? '' : undefined}><slot /></Tag>

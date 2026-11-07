@@ -20,3 +20,9 @@
   > :is(h1, h2, h3, h4, h5, h6, .sl-heading-wrapper):first-child {
   margin-top: 1.5em;
 }
+
+/* A page that opens with a "no setup" block and then a "with setup" block (e.g. Home):
+   with a setup saved, the first one is hidden, so the second one starts the page. */
+html[data-setup] .sl-markdown-content > [data-when-no-setup]:first-child + .pst-only > :first-child {
+  margin-top: 0;
+}

@@ -4,19 +4,51 @@
 //   the viewer can still switch stay listed.
 // - Previous/Next skip pages that aren't part of the setup.
 // - Pin values (<Pin> and code placeholders, src/data/setup/pins.js) show the viewer's pins.
+// - References (footnotes) whose markers the setup all hides are hidden, the rest are
+//   numbered 1, 2, 3…, and the "Reference" heading goes when none are left. Content added
+//   later (chapter 0's wiring steps) sends a "pst:content" event to check again.
 // When another tab changes the setup, the page reloads.
 import { SETUP_KEY, load, safeLocalStorage, toSelection } from '../data/setup/store.js';
 import { allocate } from '../data/setup/allocate.js';
 import { formatPin } from '../data/setup/pins.js';
 
-/** Hidden by the setup: inside a hidden <Only>, or a tab group whose tab bar is hidden. */
+/**
+ * Hidden by the setup: inside a hidden <Only>, or in a tab the setup didn't choose (its
+ * group's tab bar is hidden). <Only> wrappers have no box of their own (display: contents),
+ * and a tab bar inside an unselected tab has none either, so their computed display tells
+ * whether the setup hid them.
+ */
 function hiddenBySetup(/** @type {Element} */ el) {
   if (el.checkVisibility()) return false;
-  const only = el.closest('.pst-only');
-  if (only && !only.checkVisibility()) return true;
-  const tabs = el.closest('starlight-tabs');
-  const bar = tabs?.querySelector(':scope > .tablist-wrapper');
-  return Boolean(bar && !bar.checkVisibility());
+  for (let only = el.closest('.pst-only'); only; only = only.parentElement?.closest('.pst-only') ?? null) {
+    if (getComputedStyle(only).display === 'none') return true;
+  }
+  for (let panel = el.closest('[role="tabpanel"]'); panel; panel = panel.parentElement?.closest('[role="tabpanel"]') ?? null) {
+    const bar = panel.parentElement?.querySelector(':scope > .tablist-wrapper');
+    if (panel.hasAttribute('hidden') && bar && getComputedStyle(bar).display === 'none') return true;
+  }
+  return false;
+}
+
+/** References follow the setup; markers keep matching the numbers in the list. */
+function tidyReferences() {
+  const section = document.querySelector('section[data-footnotes]');
+  if (!(section instanceof HTMLElement)) return;
+  let shown = 0;
+  for (const li of /** @type {NodeListOf<HTMLLIElement>} */ (section.querySelectorAll('ol > li[id]'))) {
+    const markers = [...document.querySelectorAll(`a[data-footnote-ref][href="#${CSS.escape(li.id)}"]`)];
+    li.hidden = markers.length > 0 && markers.every(hiddenBySetup);
+    if (li.hidden) continue;
+    shown++;
+    for (const m of markers) m.textContent = String(shown);
+  }
+  section.hidden = shown === 0;
+  const heading = section.querySelector('h2[id]');
+  if (!heading) return;
+  for (const link of document.querySelectorAll(`starlight-toc a[href="#${heading.id}"], mobile-starlight-toc a[href="#${heading.id}"]`)) {
+    const li = link.closest('li');
+    if (li) li.hidden = section.hidden;
+  }
 }
 
 function tidyContents() {
@@ -78,6 +110,8 @@ function fillPins() {
 tidyContents();
 fixPagination();
 fillPins();
+tidyReferences();
+document.addEventListener('pst:content', tidyReferences);
 // Another tab changed the setup: marks on <html> are set by the <head> script on the next
 // load, so reload to show the new setup everywhere at once.
 window.addEventListener('storage', (e) => {

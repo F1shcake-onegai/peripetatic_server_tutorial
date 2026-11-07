@@ -37,20 +37,21 @@ export function mountPeripherals(root) {
       const chosen = s.devices.find((x) => x.id === d.id);
       const problem = chosen ? result.errors.find((e) => e.device === d.id) : undefined;
       const blocked = !chosen && av[d.id]?.ok === false;
-      const reason = problem?.reason ?? (blocked ? av[d.id]?.reason : undefined);
+      // "Choose at most one" is in the section's title: no reason on the other interface
+      const reason = problem?.reason ?? (blocked && av[d.id]?.code !== 'oneOf' ? av[d.id]?.reason : undefined);
       let modes = '';
       if (d.modes && chosen) {
         // Which interfaces fit, checked without this device
         const others = { ...toSelection(s), devices: s.devices.filter((x) => x.id !== d.id) };
         const modeAv = availability(others)[d.id]?.modes ?? {};
         const off = Object.entries(d.modes).filter(([key]) => modeAv[key]?.ok === false && key !== chosen.mode);
-        modes = `<div class="pst-segments" role="radiogroup" aria-label="${esc(d.short)} interface">
+        modes = `<div class="pst-card-extra"><div class="pst-segments" role="radiogroup" aria-label="${esc(d.short)} interface">
           ${Object.entries(d.modes).map(([key, m]) => {
             const ok = modeAv[key]?.ok !== false || key === chosen.mode;
             return `<label class="pst-segment${key === chosen.mode ? ' pst-on' : ''}${ok ? '' : ' pst-off'}">
               <input class="pst-sr" type="radio" name="pst-mode-${d.id}" id="pst-mode-${d.id}-${key}" data-device="${d.id}" value="${key}" ${key === chosen.mode ? 'checked' : ''} ${ok ? '' : 'disabled'}>${esc(m.label)}</label>`;
           }).join('')}
-        </div>${off.map(([key]) => `<p class="pst-card-reason">${esc(modeAv[key]?.reason ?? '')}</p>`).join('')}`;
+        </div>${off.map(([key]) => `<p class="pst-card-reason">${esc(modeAv[key]?.reason ?? '')}</p>`).join('')}</div>`;
       }
       const cls = ['pst-card', chosen ? 'pst-on' : '', blocked ? 'pst-off' : '', problem ? 'pst-bad' : ''].filter(Boolean).join(' ');
       return `<div class="${cls}">
@@ -60,7 +61,7 @@ export function mountPeripherals(root) {
           ${d.versions ? `<span class="pst-card-sub">${esc(d.versions)}</span>` : ''}
         </label>
         ${modes}
-        ${reason ? `<p class="pst-card-reason">${esc(reason)}</p>` : ''}
+        ${reason ? `<p class="pst-card-reason pst-card-why">${esc(reason)}</p>` : ''}
       </div>`;
     };
 

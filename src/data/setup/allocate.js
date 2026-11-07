@@ -40,7 +40,8 @@ import { DEVICES } from './devices.js';
 /**
  * @typedef {object} Breadboard
  * @property {boolean} required  More than 2 modules take 3V3, or more than 2 take 5V, from the
- *   header (there are 2 of each pin): their power and ground go through breadboard rails.
+ *   header (there are 2 of each pin): the modules on a supply with 2 or more go through a
+ *   breadboard rail pair; a module alone on its supply is wired straight to the header.
  *   Otherwise the breadboard is optional.
  * @property {{rail: '3v3' | '5v', supply: number, ground: number, devices: string[]}[]} rails
  *   When required: for each rail pair, the header pins wired to it (supply and ground) and
@@ -379,8 +380,9 @@ export function allocate(selection, catalog = DEVICES) {
   }
 
   // 6. Power and ground for wired devices (a board on the header gets them through it).
-  //    More than 2 modules on one supply (2 pins each): power and ground through breadboard
-  //    rails, each rail pair wired to one supply pin and one ground pin.
+  //    More than 2 modules on one supply (2 pins each): the breadboard is required. Each
+  //    supply with 2 or more modules gets a rail pair, wired to one supply pin and one ground
+  //    pin; a module alone on its supply keeps its own pins.
   /** @type {Map<number, number>} */
   const pinUse = new Map();
   const uses = (/** @type {number} */ p) => pinUse.get(p) ?? 0;
@@ -416,15 +418,16 @@ export function allocate(selection, catalog = DEVICES) {
   if (breadboard.required) {
     for (const rail of /** @type {const} */ (['3v3', '5v'])) {
       const ids = onSupply[rail];
-      if (!ids.length) continue;
+      if (ids.length < 2) continue;
       breadboard.rails.push({ rail, supply: 0, ground: 0, devices: ids });
     }
   }
   for (const { dev, signals } of order) {
     const supply = supplyOf(signals);
+    const onRail = breadboard.rails.some((r) => r.rail === supply);
     for (const s of signals) {
       if (s.type !== 'power' && s.type !== 'ground') continue;
-      if (breadboard.required && supply) {
+      if (onRail && supply) {
         assignments.push({ device: dev.id, signal: s.id, label: s.label, devicePin: s.devicePin, type: s.type, rail: supply, how: 'breadboard' });
         continue;
       }
@@ -455,13 +458,16 @@ export function allocate(selection, catalog = DEVICES) {
  * @param {Device} dev @param {string | undefined} mode @param {Problem[]} added  New errors
  */
 function reasonFor(dev, mode, added) {
+  /** @param {Problem} e */
+  const said = (e) => ({ reason: e.reason ?? e.message, code: e.code });
   const own = added.find((e) => e.device === dev.id);
-  if (own && own.code !== 'pins' && own.code !== 'covered' && own.code !== 'twoHats') return own.reason ?? own.message;
-  if (dev.header?.covers && added.some((e) => e.code === 'covered' || e.code === 'twoHats')) return HAT_REASON;
-  if (own?.code === 'covered') return own.reason ?? own.message;
-  if (added.some((e) => e.code === 'pins')) return notEnoughPins(dev, mode);
-  const first = own ?? added[0];
-  return first.reason ?? first.message;
+  if (own && own.code !== 'pins' && own.code !== 'covered' && own.code !== 'twoHats') return said(own);
+  if (dev.header?.covers && added.some((e) => e.code === 'covered' || e.code === 'twoHats')) return { reason: HAT_REASON, code: /** @type {const} */ ('twoHats') };
+  if (own?.code === 'covered') return said(own);
+  if (added.some((e) => e.code === 'pins')) return { reason: notEnoughPins(dev, mode), code: /** @type {const} */ ('pins') };
+  // Another device's problem caused by adding this one, e.g. the other second network interface
+  const other = added.find((e) => e.device !== dev.id && e.code === 'oneOf');
+  return said(own ?? other ?? added[0]);
 }
 
 /**
@@ -469,7 +475,7 @@ function reasonFor(dev, mode, added) {
  * A device with modes (SPI/SDIO) is available when at least one mode fits.
  * @param {Selection} selection
  * @param {Device[]} [catalog]
- * @returns {Record<string, {ok: boolean, reason?: string, modes?: Record<string, {ok: boolean, reason?: string}>}>}
+ * @returns {Record<string, {ok: boolean, reason?: string, code?: Problem['code'], modes?: Record<string, {ok: boolean, reason?: string, code?: Problem['code']}>}>}
  */
 export function availability(selection, catalog = DEVICES) {
   const before = new Set(allocate(selection, catalog).errors.map((e) => e.message));
@@ -478,15 +484,16 @@ export function availability(selection, catalog = DEVICES) {
   for (const dev of catalog) {
     if (selection.devices.some((d) => d.id === dev.id)) continue;
     const modes = dev.modes ? Object.keys(dev.modes) : [undefined];
-    /** @type {Record<string, {ok: boolean, reason?: string}>} */
+    /** @type {Record<string, {ok: boolean, reason?: string, code?: Problem['code']}>} */
     const perMode = {};
     for (const mode of modes) {
       const r = allocate({ ...selection, devices: [...selection.devices, { id: dev.id, ...(mode ? { mode } : {}) }] }, catalog);
       const added = r.errors.filter((e) => !before.has(e.message));
-      perMode[mode ?? ''] = added.length ? { ok: false, reason: reasonFor(dev, mode, added) } : { ok: true };
+      perMode[mode ?? ''] = added.length ? { ok: false, ...reasonFor(dev, mode, added) } : { ok: true };
     }
     const fits = Object.values(perMode).filter((m) => m.ok);
-    out[dev.id] = fits.length ? { ok: true } : { ok: false, reason: Object.values(perMode)[0].reason };
+    const first = Object.values(perMode)[0];
+    out[dev.id] = fits.length ? { ok: true } : { ok: false, reason: first.reason, code: first.code };
     if (dev.modes) out[dev.id].modes = perMode;
   }
   return out;

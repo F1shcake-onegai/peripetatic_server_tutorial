@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   SETUP_KEY, SETUP_EVENT, TAB_LABELS, emptySetup, validate, toSelection, keepPins, tabChoices,
-  load, save, clear, subscribe, allocate, DRAFT_KEY, loadDraft, saveDraft, clearDraft,
+  load, save, clear, subscribe, allocate, DRAFT_KEY, loadDraft, saveDraft, clearDraft, trackFits,
 } from '../src/data/setup/index.js';
 
 const ESP = 'esp32-c5-devkitc-1';
@@ -174,4 +174,16 @@ test('the draft between setup pages: kept, checked and cleared apart from the sa
   assert.equal(loadDraft(session), null);
   session.setItem(DRAFT_KEY, '{broken');
   assert.equal(loadDraft(session), null);
+});
+
+test('School Server needs a Raspberry Pi 5: with a Zero 2 W the track is left unpicked', () => {
+  assert.equal(trackFits('server', 'rpi5'), true);
+  assert.equal(trackFits('server', 'rpi-zero-2-w'), false);
+  assert.equal(trackFits('student', 'rpi-zero-2-w'), true);
+  assert.equal(trackFits(null, 'rpi-zero-2-w'), true);
+  const s = validate(setupWith({ board: 'rpi-zero-2-w', track: 'server', devices: [{ id: 'rpi-camera-module-3' }] }));
+  assert.equal(s?.board, 'rpi-zero-2-w');
+  assert.equal(s?.track, null);
+  assert.deepEqual(s?.devices, [{ id: 'rpi-camera-module-3' }]);
+  assert.equal(validate(setupWith({ board: 'rpi5', track: 'server' }))?.track, 'server');
 });

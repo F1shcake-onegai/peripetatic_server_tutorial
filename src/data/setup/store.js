@@ -28,6 +28,17 @@ export const SETUP_VERSION = 1;
 export const SETUP_EVENT = 'pst-setup-change';
 
 const TRACKS = ['student', 'server'];
+/** Boards each track can use; a track not listed can use every board */
+export const TRACK_BOARDS = { server: ['rpi5'] };
+
+/**
+ * Can this track run on this board?
+ * @param {Setup['track']} track @param {string} board
+ */
+export function trackFits(track, board) {
+  const boards = track ? TRACK_BOARDS[/** @type {keyof typeof TRACK_BOARDS} */ (track)] : undefined;
+  return !boards || boards.includes(board);
+}
 const USABLE_GPIOS = new Set(HEADER.filter((h) => h.kind === 'gpio' && !h.reserved).map((h) => h.gpio));
 
 /** @returns {Setup} */
@@ -61,7 +72,8 @@ export function validate(raw, catalog = DEVICES) {
 
   const setup = emptySetup();
   if (typeof v.board === 'string' && v.board in BOARDS) setup.board = v.board;
-  if (TRACKS.includes(v.track)) setup.track = v.track;
+  // A track that can't run on the board is left unpicked, so the viewer picks again
+  if (TRACKS.includes(v.track) && trackFits(v.track, setup.board)) setup.track = v.track;
 
   for (const d of Array.isArray(v.devices) ? v.devices : []) {
     const dev = catalog.find((x) => x.id === d?.id);

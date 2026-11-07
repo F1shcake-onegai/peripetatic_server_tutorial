@@ -71,25 +71,17 @@ test('catalog: fixed and default GPIOs are usable header GPIOs', () => {
   }
 });
 
-test('catalog: every ESP32 pin used for wiring is on the DevKit headers, in every board revision', () => {
+test('catalog: every ESP32 pin used for wiring is on the DevKit headers (v1.2 or later)', () => {
   const esp = DEVICES.find((d) => d.id === ESP);
-  assert.deepEqual(Object.keys(esp.pinouts), ['v1.1', 'v1.2 or later']);
-  for (const [rev, pinout] of Object.entries(esp.pinouts)) {
-    assert.equal(pinout.length, 32, rev);
-    const names = new Set(pinout.map((p) => p.name));
-    for (const mode of Object.values(esp.modes)) {
-      for (const s of mode.signals) assert.ok(names.has(s.devicePin), `${rev} ${s.devicePin}`);
-    }
+  assert.equal(esp.versions, 'v1.2 or later');
+  assert.equal(esp.pinout.length, 32);
+  const names = new Set(esp.pinout.map((p) => p.name));
+  for (const mode of Object.values(esp.modes)) {
+    for (const s of mode.signals) assert.ok(names.has(s.devicePin), s.devicePin);
   }
-});
-
-test('catalog: ESP32 revisions differ only in pin order', () => {
-  const esp = DEVICES.find((d) => d.id === ESP);
-  const gpios = (rev) => esp.pinouts[rev].map((p) => p.gpio).filter((g) => g !== undefined).sort((a, b) => a - b);
-  assert.deepEqual(gpios('v1.1'), gpios('v1.2 or later'));
-  const where = (rev, name) => esp.pinouts[rev].filter((p) => p.name === name).map((p) => `${p.header}-${p.no}`);
-  assert.deepEqual(where('v1.1', 'IO10'), ['J3-7']);
-  assert.deepEqual(where('v1.2 or later', 'IO10'), ['J1-11']);
+  const where = (name) => esp.pinout.filter((p) => p.name === name).map((p) => `${p.header}-${p.no}`);
+  assert.deepEqual(where('IO10'), ['J1-11']);
+  assert.deepEqual(where('IO7'), ['J1-8']);
 });
 
 const PACK = DEVICES.filter((d) => d.id.startsWith('waveshare-') && d.category === 'sensor');
@@ -239,13 +231,28 @@ test('breadboard: a third module on 3V3 sends power and ground through a rail pa
   assert.deepEqual(r.breadboard.rails.map((x) => [x.rail, x.supply, x.ground, [...x.devices].sort()]), [['3v3', 17, 30, [...ids].sort()]]);
 });
 
-test('breadboard: a 5V module gets its own rail pair when the breadboard is required', () => {
-  const r = allocate({ board: 'rpi5', devices: ['waveshare-tilt', 'waveshare-laser', 'waveshare-hall', 'adafruit-mini-pir-4871'].map((id) => ({ id })) });
-  assert.deepEqual(r.breadboard.rails.map((x) => [x.rail, x.devices]), [
-    ['3v3', ['waveshare-hall', 'waveshare-laser', 'waveshare-tilt']], ['5v', ['adafruit-mini-pir-4871']],
-  ]);
+test('breadboard: a module alone on its supply is wired straight to the header', () => {
+  const PIR = 'adafruit-mini-pir-4871';
+  const r = allocate({ board: 'rpi5', devices: ['waveshare-tilt', 'waveshare-laser', 'waveshare-hall', PIR].map((id) => ({ id })) });
+  assert.ok(r.ok);
+  assert.equal(r.breadboard.required, true);
+  assert.deepEqual(r.breadboard.rails.map((x) => [x.rail, x.devices]), [['3v3', ['waveshare-hall', 'waveshare-laser', 'waveshare-tilt']]]);
+  const pir = r.assignments.filter((a) => a.device === PIR && (a.type === 'power' || a.type === 'ground'));
+  assert.ok(pir.every((a) => a.rail === undefined && a.pin !== undefined && a.how === 'auto'));
+  assert.ok([2, 4].includes(/** @type {number} */ (pir.find((a) => a.type === 'power')?.pin)));
+  assert.notEqual(pir.find((a) => a.type === 'ground')?.pin, r.breadboard.rails[0].ground);
+});
+
+test('breadboard: 2 modules on a supply share a rail pair when the breadboard is required', () => {
+  // The catalog has one 5V module, so a second one is a copy of it
+  const pir = /** @type {import('../src/data/setup/devices.js').Device} */ (DEVICES.find((d) => d.id === 'adafruit-mini-pir-4871'));
+  const catalog = [...DEVICES, { ...pir, id: 'pir-2', short: 'PIR 2' }];
+  const r = allocate({ board: 'rpi5', devices: ['waveshare-tilt', 'waveshare-laser', 'waveshare-hall', pir.id, 'pir-2'].map((id) => ({ id })) }, catalog);
+  assert.ok(r.ok);
+  assert.deepEqual(r.breadboard.rails.map((x) => [x.rail, x.devices.length]), [['3v3', 3], ['5v', 2]]);
   assert.ok([2, 4].includes(r.breadboard.rails[1].supply));
   assert.notEqual(r.breadboard.rails[0].ground, r.breadboard.rails[1].ground);
+  assert.ok(r.assignments.filter((a) => a.type === 'power' || a.type === 'ground').every((a) => a.rail && a.pin === undefined));
 });
 
 test('breadboard: the ESP32 keeps its own ground wire; boards on the header do not count', () => {
@@ -283,7 +290,7 @@ test('a device that no longer fits is greyed out with the reason', () => {
   const catalog = CATALOG_WITH(needs('two-pins', 2), needs('three-pins', 3));
   const av = availability(sel, catalog);
   assert.equal(av['two-pins'].ok, true);
-  assert.deepEqual(av['three-pins'], { ok: false, reason: 'Not enough GPIO pins' });
+  assert.deepEqual(av['three-pins'], { ok: false, reason: 'Not enough GPIO pins', code: 'pins' });
 });
 
 test('SDIO takes GPIO 22-27: a module that needs GPIO22 is greyed out (with SPI, Handshake makes room)', () => {
@@ -457,6 +464,8 @@ test('second network interface: the ESP32 or the Wi-Fi dongle, not both', () => 
   const r = allocate({ board: 'rpi5', devices: [{ id: ESP, mode: 'spi' }, { id: 'wifi-dongle' }] });
   assert.deepEqual(r.errors.map((e) => e.reason), ['Only one second network interface is allowed']);
   assert.equal(availability({ board: 'rpi5', devices: [{ id: 'wifi-dongle' }] })[ESP].reason, 'Only one second network interface is allowed');
+  assert.equal(availability({ board: 'rpi5', devices: [{ id: 'wifi-dongle' }] })[ESP].code, 'oneOf');
+  assert.equal(availability({ board: 'rpi5', devices: [{ id: ESP, mode: 'spi' }] })['wifi-dongle'].code, 'oneOf');
   assert.equal(availability({ board: 'rpi5', devices: [{ id: ESP, mode: 'spi' }] })['wifi-dongle'].reason, 'Only one second network interface is allowed');
 });
 

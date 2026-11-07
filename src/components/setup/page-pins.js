@@ -8,21 +8,18 @@ import {
   pinViews, pinOfGpio, signalsOf, RAIL_NAMES, load, save, clear, clearDraft,
 } from '../../data/setup/index.js';
 import { esc, urlsOf, currentSetup, keepDraft, stepper, chooseFirst, local, session } from './common.js';
+import { BREADBOARD, alignBadges, headerMap, moduleColours } from './header-map.js';
 
 /** @typedef {import('../../data/setup/store.js').Setup} Setup */
 /** @typedef {import('../../data/setup/allocate.js').Result} Result */
 /** @typedef {import('../../data/setup/picture.js').PinView} PinView */
 
-const KINDS = [['3v3', '3V3 power'], ['5v', '5V power'], ['gnd', 'Ground'], ['gpio', 'GPIO'], ['reserved', 'Reserved']];
 const byId = Object.fromEntries(DEVICES.map((d) => [d.id, d]));
 /** A setup as text that doesn't depend on key order, to compare two setups @param {Setup} s */
 const canonical = (s) => {
   const sorted = (/** @type {Record<string, number>} */ o) => Object.fromEntries(Object.entries(o).sort(([a], [b]) => a.localeCompare(b)));
   return JSON.stringify({ ...s, moved: sorted(s.moved), kept: sorted(s.kept) });
 };
-/** Pseudo device for the breadboard's rail pins */
-const BREADBOARD = 'breadboard';
-
 /** @param {HTMLElement} root */
 export function mountPins(root) {
   const urls = urlsOf(root);
@@ -39,6 +36,10 @@ export function mountPins(root) {
   let mover = null;
   /** @type {PinView[]} */
   let views = [];
+  /** Colour of each module with header pins: 1-4 in catalog order, 0 (grey) after that @type {Map<string, number>} */
+  let colours = new Map();
+  /** @param {string} id */
+  const colourOf = (id) => colours.get(id) ?? 0;
 
   /** GPIOs a signal can move to, besides its own @param {string} key */
   const targetsOf = (key) => {
@@ -53,18 +54,20 @@ export function mountPins(root) {
     const focused = document.activeElement?.id;
     if (!setup?.track) {
       root.innerHTML = stepper(3, setup, urls) + chooseFirst(urls);
+      enableNext(false);
       return;
     }
     const s = setup;
     const result = allocate(toSelection(s));
     views = pinViews(toSelection(s), result);
+    colours = moduleColours(views);
     const board = BOARDS[/** @type {keyof typeof BOARDS} */ (s.board)];
     const wired = result.assignments.some((a) => a.pin !== undefined || a.how === 'header');
 
     root.innerHTML = `
       ${stepper(3, s, urls)}
       <div class="pst-layout${wired ? '' : ' pst-layout-single'}">
-        ${wired ? `<div class="pst-map">${map(board?.name ?? '')}</div>` : ''}
+        ${wired ? `<div class="pst-map">${headerMap(views, colours, board?.name ?? '')}</div>` : ''}
         <div class="pst-parts">
           ${result.errors.length ? `<ul class="pst-problems">${result.errors.map((e) => `<li>${esc(e.message)}</li>`).join('')}</ul>` : ''}
           ${s.devices.length ? '' : '<p class="pst-muted">No peripherals chosen.</p>'}
@@ -74,28 +77,30 @@ export function mountPins(root) {
       </div>
       ${actions(result)}`;
     if (focused) document.getElementById(focused)?.focus();
+    alignBadges(root);
     applyFocus();
+    enableNext(result.ok && !isDirty(result));
   };
 
-  /** @param {string} boardName */
-  const map = (boardName) => {
-    /** @param {PinView} v */
-    const devicesOf = (v) => [...v.users.map((u) => u.device), ...(v.rail ? [...v.rail.devices, BREADBOARD] : [])].join(' ');
-    /** @param {PinView} v */
-    const base = (v) => [v.users.length || v.rail ? 'pst-used' : '', v.reserved ? 'pst-reserved' : '', v.coveredBy ? 'pst-covered' : ''].filter(Boolean).join(' ');
-    /** @param {PinView} v */
-    const pin = (v) => `<button type="button" class="pst-hpin pst-k-${v.kind} ${base(v)}" id="pst-pin-${v.pin}" data-pin="${v.pin}" data-devices="${devicesOf(v)}" aria-label="${esc([`Pin ${v.pin}`, v.name, v.badge].filter(Boolean).join(', '))}">${v.pin}</button>`;
-    /** @param {PinView} v @param {'left' | 'right'} side */
-    const label = (v, side) => `<div class="pst-label pst-${side} ${base(v)}" data-pin="${v.pin}" data-devices="${devicesOf(v)}" aria-hidden="true">
-        <span class="pst-pin-name">${esc(v.name)}</span>${v.badge ? `<span class="pst-badge${v.rail ? ' pst-badge-rail' : ''}">${esc(v.badge)}</span>` : ''}</div>`;
-    const rows = [];
-    for (let i = 0; i < views.length; i += 2) rows.push(label(views[i], 'left') + pin(views[i]) + pin(views[i + 1]) + label(views[i + 1], 'right'));
-    const top = views.find((v) => v.coveredBy)?.coveredBy;
-    return `<h2 class="pst-map-title">${esc(boardName)} GPIO header</h2>
-      ${top ? `<p class="pst-muted">${esc(byId[top].short)} covers the header.</p>` : ''}
-      <div class="pst-header" role="group" aria-label="${esc(boardName)} GPIO header">${rows.join('')}</div>
-      <div class="pst-keys">${KINDS.map(([k, name]) => `<span class="pst-key"><span class="pst-swatch pst-k-${k === 'reserved' ? 'gpio pst-reserved' : k}"></span>${name}</span>`).join('')}</div>`;
+  // Starlight's Next link (0. Hardware Preparation) works only while the setup is saved
+  const next = document.querySelector('.pagination-links a[rel="next"]');
+  const nextHref = next?.getAttribute('href');
+  /** @param {boolean} on */
+  const enableNext = (on) => {
+    if (!(next instanceof HTMLAnchorElement) || !nextHref) return;
+    if (on) {
+      next.setAttribute('href', nextHref);
+      next.removeAttribute('role');
+      next.removeAttribute('aria-disabled');
+    } else {
+      next.removeAttribute('href');
+      next.setAttribute('role', 'link');
+      next.setAttribute('aria-disabled', 'true');
+    }
+    next.classList.toggle('pst-next-off', !on);
   };
+
+  document.fonts?.ready.then(() => alignBadges(root));
 
   /** @param {Result} result */
   const breadboard = (result) => {
@@ -105,7 +110,7 @@ export function mountPins(root) {
       <tr><td>${RAIL_NAMES[r.rail]} rail (−)</td><td>Pin ${r.ground} · GND</td></tr>
       <tr class="pst-row-note"><td colspan="2">On the ${RAIL_NAMES[r.rail]} rail: ${r.devices.map((id) => esc(byId[id].short)).join(', ')}</td></tr>`).join('');
     return `<section class="pst-part" data-device="${BREADBOARD}">
-      <h3><button type="button" class="pst-part-name" id="pst-name-${BREADBOARD}" data-focus="${BREADBOARD}">Breadboard</button></h3>
+      <h3><button type="button" class="pst-part-name" id="pst-name-${BREADBOARD}" data-focus="${BREADBOARD}"><span class="pst-dot pst-dot-rail" aria-hidden="true"></span>Breadboard</button></h3>
       <table><thead><tr><th>Rail</th><th>Raspberry Pi</th></tr></thead><tbody>${rows}</tbody></table>
     </section>`;
   };
@@ -135,18 +140,22 @@ export function mountPins(root) {
     const uses = result.connectors.filter((c) => c.device === id).map((c) => c.name);
     const notes = result.warnings.filter((w) => w.device === id).map((w) => w.reason ?? w.message);
     const bad = result.errors.some((e) => e.device === id);
+    const dot = colours.has(id) ? `<span class="pst-dot pst-m${colourOf(id)}" aria-hidden="true"></span>` : '';
     return `<section class="pst-part${bad ? ' pst-bad' : ''}" data-device="${id}">
-      <h3><button type="button" class="pst-part-name" id="pst-name-${id}" data-focus="${id}">${esc(d.short)}</button></h3>
+      <h3><button type="button" class="pst-part-name" id="pst-name-${id}" data-focus="${id}">${dot}${esc(d.short)}</button></h3>
       ${rows ? `<table><thead><tr><th>Signal</th><th>Device pin</th><th>Raspberry Pi</th></tr></thead><tbody>${rows}</tbody></table>` : ''}
-      ${uses.length ? `<p class="pst-muted">Uses ${esc(uses.join(', '))}</p>` : ''}
+      ${uses.length ? `<p class="pst-muted">Using ${esc(uses.join(', '))}</p>` : ''}
       ${notes.map((n) => `<p class="pst-muted">${esc(n)}</p>`).join('')}
     </section>`;
   };
 
+  /** Whether the page differs from the saved setup @param {Result} result */
+  const isDirty = (result) => !saved || canonical(keepPins(/** @type {Setup} */ (setup), result)) !== canonical(saved);
+
   /** @param {Result} result */
   const actions = (result) => {
     const s = /** @type {Setup} */ (setup);
-    const dirty = !saved || canonical(keepPins(s, result)) !== canonical(saved);
+    const dirty = isDirty(result);
     const status = message || (!result.ok ? 'Fix the pins marked in red to save.' : dirty ? 'Not saved yet.' : 'Saved.');
     return `<div class="pst-nav">
       <a class="pst-btn" href="${esc(urls.peripherals)}">Back</a>
