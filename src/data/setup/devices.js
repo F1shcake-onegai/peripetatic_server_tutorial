@@ -10,7 +10,13 @@
  * @property {'gpio' | 'power' | 'ground' | 'analog'} type
  *   gpio: needs a Raspberry Pi GPIO. power/ground: a 3V3/5V/GND pin.
  *   analog: an analog output; the Raspberry Pi has no analog inputs, so it is never wired.
- * @property {'3v3' | '5v'} [power]
+ * @property {'3v3' | '5v'} [power]   The supply a power signal uses by default
+ * @property {('3v3' | '5v')[]} [supplies]  Supplies a power signal can run on. The viewer can
+ *   switch between them, and when every pin of the default supply is taken by a plug, it uses
+ *   the next one.
+ * @property {number} [pin]        Header pin a power or ground signal must use (a plug's wire)
+ * @property {number} [pullUp]     Ohms of the pull-up resistor to 3.3 V it needs: one leg in the
+ *   same breadboard hole as its wire, the other in the + rail (3V3 from the Pi)
  * @property {number} [fixed]      GPIO the signal must use
  * @property {number} [default]    GPIO used unless the viewer moves it (movable signals only)
  * @property {number[]} [exclude]  GPIOs a movable signal may never use
@@ -59,6 +65,13 @@
  * @property {Record<string, {label: string, protocol?: string, signals: Signal[]}>} [modes]  Choose one, e.g. SPI or SDIO
  * @property {Signal[]} [signals]
  * @property {DevicePin[]} [pinout]  The device's own headers, for the wiring steps
+ * @property {{pins: number[], steps: string[]}} [plug]  A plug that sits on the header: the
+ *   pins it covers (its power and ground signals name their pin with `pin`; nothing else can
+ *   use any of them), and the text of its wiring step
+ * @property {string[]} [connect]   Text of the wiring step for its ribbon cable, instead of the
+ *   plain one; {connector} becomes the connector's name
+ * @property {string[]} [fit]       It sits on the breadboard, so the breadboard is required with it:
+ *   the text of the wiring step that fits it there. Its wires start beside its pins.
  * @property {string[]} sources
  * @property {string[]} [notes]
  */
@@ -92,12 +105,16 @@ export const DEVICES = [
     // Wiring from ESP-Hosted-Linux's Raspberry Pi guide; the three SPI control pins can
     // move (rpi_init.sh: resetgpio, handshakegpio, datareadygpio). The ESP32 stays on a
     // USB port of the Pi for power and flashing, so only ground is wired.
+    // Pull-ups (ESP-Hosted-Linux docs/getting-started/hardware-setup.md): "A pull-up of at
+    // least 10 kΩ on chip select" for SPI; "CMD and DAT0-DAT3 require pull-ups", 10 kΩ in its
+    // diagram, for SDIO. The DevKitC-1 v1.2 schematic has none on these pins. The DevKit sits
+    // on the breadboard, and each resistor shares the hole of its wire.
     modes: {
       spi: {
         label: 'SPI',
         protocol: 'SPI',
         signals: [
-          fixed('cs', 'CS', 'IO10', 8),
+          { ...fixed('cs', 'CS', 'IO10', 8), pullUp: 10000 },
           fixed('sclk', 'SCLK', 'IO6', 11),
           fixed('miso', 'MISO', 'IO2', 9),
           fixed('mosi', 'MOSI', 'IO7', 10),
@@ -111,12 +128,12 @@ export const DEVICES = [
         label: 'SDIO',
         protocol: 'SDIO',
         signals: [
-          fixed('dat3', 'DAT3', 'IO13', 27),
+          { ...fixed('dat3', 'DAT3', 'IO13', 27), pullUp: 10000 },
           fixed('clk', 'CLK', 'IO9', 22),
-          fixed('cmd', 'CMD', 'IO10', 23),
-          fixed('dat0', 'DAT0', 'IO8', 24),
-          fixed('dat1', 'DAT1', 'IO7', 25),
-          fixed('dat2', 'DAT2', 'IO14', 26),
+          { ...fixed('cmd', 'CMD', 'IO10', 23), pullUp: 10000 },
+          { ...fixed('dat0', 'DAT0', 'IO8', 24), pullUp: 10000 },
+          { ...fixed('dat1', 'DAT1', 'IO7', 25), pullUp: 10000 },
+          { ...fixed('dat2', 'DAT2', 'IO14', 26), pullUp: 10000 },
           fixed('reset', 'Reset', 'RST', 6),
           ground('GND', 39),
         ],
@@ -158,10 +175,16 @@ export const DEVICES = [
       { header: 'J3', no: 15, name: 'GND', function: 'Ground' },
       { header: 'J3', no: 16, name: 'NC', function: 'No connection' },
     ],
+    fit: [
+      'Push the DevKit into the breadboard across the middle gap, with its pins in columns b and i.',
+      'Columns a and j stay free. Each wire to the Pi starts in the hole beside its pin.',
+    ],
     sources: [
       'https://github.com/espressif/esp-hosted-linux/blob/master/docs/reference/raspberry-pi.md',
+      'https://github.com/espressif/esp-hosted-linux/blob/master/docs/getting-started/hardware-setup.md',
       'https://github.com/espressif/esp-hosted-linux/blob/master/host/rpi_init.sh',
       'https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32c5/esp32-c5-devkitc-1/user_guide.html',
+      'https://dl.espressif.com/dl/schematics/SCH_ESP32-C5-DevkitC-1_V1.2_20250211.pdf',
     ],
     notes: [
       'Strapping pins: MTMS (IO2), MTDI (IO3), IO7, IO25, IO26, IO27, IO28.',
@@ -284,17 +307,42 @@ export const DEVICES = [
     ],
   },
   {
-    id: 'freenove-5in-dsi',
-    name: 'Freenove 5" IPS display (FNK0078)',
+    id: 'rpi-touch-display-2',
+    name: 'Raspberry Pi Touch Display 2',
     short: 'Display',
+    versions: '5" or 7"',
     tracks: ['student'],
     category: 'display',
     uses: { display: 1 },
-    signals: [],
-    sources: ['https://github.com/Freenove/Freenove_Touchscreen_Monitor_for_Raspberry_Pi'],
+    // Raspberry Pi documentation, Touch Display 2 (documentation/asciidoc/accessories/
+    // touch-display-2/about.adoc in raspberrypi/documentation): the 5" and 7" models come with
+    // a 22-way to 15-way cable for the Raspberry Pi 5 and a 15-way to 15-way cable for
+    // Raspberry Pi 4 and earlier, and don't work with the Zero series. The GPIO power cable's
+    // 3-pin plug sits on pins 2, 4 and 6: red (5 V) on pin 2, black (ground) on pin 6.
+    signals: [
+      { id: 'vcc', label: 'Power', devicePin: 'Red', type: 'power', power: '5v', pin: 2 },
+      { id: 'gnd', label: 'Ground', devicePin: 'Black', type: 'ground', pin: 6 },
+    ],
+    plug: {
+      pins: [2, 4, 6],
+      steps: [
+        'Plug the small end of the power cable into J1 on the display.',
+        'Fit the 3-pin end onto Pi pins 2, 4 and 6: red on pin 2 (5V power), black on pin 6 (Ground).',
+        'Connecting it the wrong way can damage the display.',
+      ],
+    },
+    connect: [
+      'Use the 22-way to 15-way ribbon cable. The 15-way to 15-way cable is for Raspberry Pi 4 and earlier.',
+      'Plug the larger end into the display, with the metal contacts facing away from the display.',
+      "Plug the smaller end into the Pi's {connector} connector, with the metal contacts facing the Ethernet and USB ports.",
+    ],
+    sources: [
+      'https://www.raspberrypi.com/documentation/accessories/touch-display-2.html',
+      'https://github.com/raspberrypi/documentation/blob/master/documentation/asciidoc/accessories/touch-display-2/about.adoc',
+    ],
     notes: [
-      'Connects with a ribbon cable to a camera/display (DSI) connector. The Raspberry Pi mounts on the back of the screen.',
-      'Some FNK0078 models have two spring contacts that press on the header from below (5V and ground in Freenove\'s photos); jumper wires still fit on top.',
+      'The Raspberry Pi 5 detects it on either CAM/DISP connector.',
+      'It takes its power from the GPIO header; its plug also covers pin 4, the other 5V pin.',
     ],
   },
   {
@@ -304,9 +352,11 @@ export const DEVICES = [
     tracks: ['student'],
     category: 'sensor',
     // "power it from 3 to 12V DC, there's an onboard regulator"; "Digital signal output is
-    // 3.3V high/low". Powered from 5V, its output still stays at 3.3 V.
+    // 3.3V high/low". Powered from 5V, its output still stays at 3.3 V. 5V by default, which
+    // keeps the 3V3 pins for the sensors that need them; 3V3 when the viewer chooses it, or
+    // when a plug (the Touch Display 2's) takes the 5V pins.
     signals: [
-      { id: 'vcc', label: 'Power', devicePin: '+', type: 'power', power: '5v' },
+      { id: 'vcc', label: 'Power', devicePin: '+', type: 'power', power: '5v', supplies: ['5v', '3v3'] },
       ground('-'),
       dout('O', 'Motion output'),
     ],
@@ -351,18 +401,11 @@ export const DEVICES = [
 
   // Waveshare Sensors Pack (https://www.waveshare.com/sensors-pack.htm), without the
   // Moisture, UV and Liquid Level sensors: they only have an analog output, and the
-  // Raspberry Pi has no analog inputs. Every module accepts 3.3 V, so it is powered from
-  // 3V3 and its digital output stays at 3.3 V (Raspberry Pi GPIOs are not 5 V tolerant).
-  {
-    id: 'waveshare-mq5-gas',
-    name: 'MQ-5 Gas Sensor',
-    short: 'Gas Sensor',
-    tracks: ['student'],
-    category: 'sensor',
-    signals: [vcc33, ground(), dout('DOUT'), aout()],
-    sources: ['https://www.waveshare.com/product/MQ-5-Gas-Sensor.htm'],
-    notes: ['Power: 2.5 V to 5.0 V.'],
-  },
+  // Raspberry Pi has no analog inputs. Without the MQ-5 Gas Sensor for now: its board boosts
+  // VCC to 5 V, and DOUT is pulled up to that 5 V through its LED and 1 kΩ (Waveshare's
+  // schematic). Every other module accepts 3.3 V, so it is powered from 3V3, and its digital
+  // output is pulled up to VCC on its own board, so it stays at 3.3 V (Raspberry Pi GPIOs
+  // are not 5 V tolerant). No module here needs a pull-up resistor on the breadboard.
   {
     id: 'waveshare-color',
     name: 'Color Sensor (TCS3200)',

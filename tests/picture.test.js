@@ -93,3 +93,13 @@ test('back to automatic: the moved pin is forgotten, the others stay', () => {
   assert.equal(auto.kept['waveshare-hall.dout'], undefined);
   assert.equal(auto.kept['waveshare-tilt.dout'], moved.kept['waveshare-tilt.dout']);
 });
+
+test('the display\'s power plug: 5V on pin 2, ground on pin 6, pin 4 covered', () => {
+  const TD2 = 'rpi-touch-display-2';
+  const views = viewsOf(setupWith([{ id: TD2 }]));
+  assert.deepEqual([2, 4, 6].map((p) => views[p - 1].users.map((u) => [u.device, u.label, u.how])), [
+    [[TD2, 'Power', 'plug']], [[TD2, 'Covered by the plug', 'plug']], [[TD2, 'Ground', 'plug']],
+  ]);
+  assert.equal(views[3].badge, 'Display · Covered by the plug');
+  assert.ok(views.every((v) => [2, 4, 6].includes(v.pin) || !v.users.length));
+});

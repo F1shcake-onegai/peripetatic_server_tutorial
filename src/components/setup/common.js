@@ -9,6 +9,9 @@ import { load, loadDraft, saveDraft, safeLocalStorage, safeSessionStorage, alloc
 /** @param {unknown} s */
 export const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] ?? c);
 
+/** A resistor's value, e.g. '10 kΩ' @param {number} n */
+export const ohms = (n) => (n >= 1000 ? `${n / 1000} kΩ` : `${n} Ω`);
+
 export const local = safeLocalStorage();
 export const session = safeSessionStorage();
 

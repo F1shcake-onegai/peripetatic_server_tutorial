@@ -1,7 +1,7 @@
 // Tests for the setup page's changes (src/data/setup/editor.js). Run: npm test
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { devicesFor, setBoard, setTrack, toggleDevice, setMode, movePin, resetPins } from '../src/data/setup/editor.js';
+import { devicesFor, setBoard, setTrack, toggleDevice, setMode, movePin, setPower, resetPins } from '../src/data/setup/editor.js';
 import { emptySetup, DEVICES } from '../src/data/setup/index.js';
 
 const ESP = 'esp32-c5-devkitc-1';
@@ -72,4 +72,16 @@ test('board and pin reset; the original setup is never changed', () => {
   setMode(original, ESP, 'sdio');
   movePin(original, 'waveshare-tilt.dout', 24);
   assert.deepEqual(original, copy);
+});
+
+test('switching the PIR to 3V3 keeps the other pins; its default or Reset pins goes back to automatic', () => {
+  const PIR = 'adafruit-mini-pir-4871';
+  const s = { ...emptySetup(), devices: [{ id: PIR }, { id: 'waveshare-tilt' }] };
+  const on3 = setPower(s, PIR, '3v3');
+  assert.deepEqual(on3.devices, [{ id: PIR, power: '3v3' }, { id: 'waveshare-tilt' }]);
+  assert.deepEqual(Object.keys(on3.kept).sort(), [`${PIR}.o`, 'waveshare-tilt.dout']);
+  assert.deepEqual(setPower(on3, PIR, '5v').devices, [{ id: PIR }, { id: 'waveshare-tilt' }]);
+  assert.deepEqual(setPower(s, 'waveshare-tilt', '5v').devices, s.devices);
+  assert.deepEqual(resetPins(on3).devices, [{ id: PIR }, { id: 'waveshare-tilt' }]);
+  assert.deepEqual(s.devices, [{ id: PIR }, { id: 'waveshare-tilt' }]);
 });

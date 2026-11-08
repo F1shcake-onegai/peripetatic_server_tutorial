@@ -6,7 +6,8 @@
 // defaults, then free GPIOs, kept
 // close together for each device (plain pins first, see GPIO_TIERS); then the power and
 // ground pins nearest each device's GPIOs. A board that covers the header without
-// extension pins leaves no pins to wire anything else to.
+// extension pins leaves no pins to wire anything else to. A plug on the header (the Touch
+// Display 2's power cable) keeps its pins for itself.
 import { BOARDS, GPIO_PREFERENCE, GPIO_TIERS, HEADER, pinDistance } from './header.js';
 import { DEVICES } from './devices.js';
 
@@ -16,7 +17,8 @@ import { DEVICES } from './devices.js';
 /**
  * @typedef {object} Selection
  * @property {string} board                     'rpi5' or 'rpi-zero-2-w'
- * @property {{id: string, mode?: string}[]} devices
+ * @property {{id: string, mode?: string, power?: '3v3' | '5v'}[]} devices   `power`: the supply
+ *   the viewer chose for the device's power wire (see Signal.supplies)
  * @property {Record<string, number>} [moved]   'deviceId.signalId' -> GPIO the viewer chose
  * @property {Record<string, number>} [kept]    'deviceId.signalId' -> GPIO given when the setup
  *   was saved, so a module added later never moves one that is already wired. `moved` wins.
@@ -33,19 +35,27 @@ import { DEVICES } from './devices.js';
  *   or for power and ground taken from a breadboard rail)
  * @property {number} [gpio]
  * @property {'3v3' | '5v'} [rail]  Power or ground from this breadboard rail (pair) instead of a pin
- * @property {'fixed' | 'moved' | 'kept' | 'default' | 'auto' | 'header' | 'breadboard'} how
+ * @property {'3v3' | '5v'} [supply]  Power: the supply it takes
+ * @property {number} [pullUp]   GPIO: ohms of its pull-up resistor to the breadboard's 3V3 rail (+)
+ * @property {'fixed' | 'moved' | 'kept' | 'default' | 'auto' | 'header' | 'breadboard' | 'plug'} how
+ *   plug: a wire of a plug on the header, on the pin the plug puts it
  * @property {boolean} [shared]  The pin is also used by another device
  */
 
 /**
  * @typedef {object} Breadboard
- * @property {boolean} required  More than 2 modules take 3V3, or more than 2 take 5V, from the
- *   header (there are 2 of each pin): the modules on a supply with 2 or more go through a
- *   breadboard rail pair; a module alone on its supply is wired straight to the header.
- *   Otherwise the breadboard is optional.
- * @property {{rail: '3v3' | '5v', supply: number, ground: number, devices: string[]}[]} rails
- *   When required: for each rail pair, the header pins wired to it (supply and ground) and
- *   the devices it powers.
+ * @property {boolean} required  A module sits on it (the ESP32 DevKit), or more than 2 modules
+ *   take 3V3, or more than 2 take 5V, from the header (there are 2 of each pin). Then the
+ *   modules on a supply with 2 or more go through a breadboard rail pair; a module alone on
+ *   its supply is wired straight to the header. Otherwise the breadboard is optional.
+ * @property {{rail: '3v3' | '5v', supply: number, ground?: number, devices: string[], pullUps: string[], header?: string}[]} rails
+ *   When required: for each rail pair, the header pins wired to it (supply, and ground when
+ *   modules take power from it), the devices it powers, and the devices whose pull-up
+ *   resistors go to its + strip. header: the pull-ups are all on this header of their
+ *   device, so the rail is the one on that side.
+ * @property {boolean} bridge   The pull-ups sit on both sides of their device: a jumper joins
+ *   the two + rails, so both carry 3V3
+ * @property {string[]} mounted   Devices that sit on the breadboard
  */
 
 /**
@@ -84,11 +94,13 @@ const boardsWith = (has) => Object.values(BOARDS).filter(has).map((b) => b.name)
  * @property {Assignment[]} assignments
  * @property {Connector[]} connectors
  * @property {Breadboard} breadboard
+ * @property {{device: string, pins: number[]}[]} plugs   Plugs on the header and the pins they cover
  * @property {Problem[]} errors
  * @property {Problem[]} warnings
  */
 
 const GPIO_PINS = HEADER.filter((h) => h.kind === 'gpio');
+const SUPPLY_NAMES = { '3v3': '3V3', '5v': '5V' };
 /** @param {number} gpio */
 const headerPin = (gpio) => GPIO_PINS.find((h) => h.gpio === gpio);
 /** @param {string} kind */
@@ -128,19 +140,19 @@ export function allocate(selection, catalog = DEVICES) {
 
   const board = BOARDS[/** @type {keyof typeof BOARDS} */ (selection.board)];
   if (!board) {
-    return { ok: false, assignments, connectors: [], breadboard: { required: false, rails: [] }, errors: [{ message: `Unknown board: ${selection.board}` }], warnings };
+    return { ok: false, assignments, connectors: [], breadboard: { required: false, rails: [], bridge: false, mounted: [] }, plugs: [], errors: [{ message: `Unknown board: ${selection.board}` }], warnings };
   }
 
   // Chosen devices in catalog order, so the order of the selection doesn't matter.
-  /** @type {{dev: Device, signals: Signal[], mode?: string}[]} */
+  /** @type {{dev: Device, signals: Signal[], mode?: string, power?: '3v3' | '5v'}[]} */
   const chosen = [];
-  for (const { id, mode } of selection.devices) {
+  for (const { id, mode, power } of selection.devices) {
     const dev = catalog.find((d) => d.id === id);
     if (!dev) { errors.push({ device: id, code: 'other', message: `Unknown device: ${id}` }); continue; }
     if (chosen.some((c) => c.dev === dev)) { fail(dev, 'other', 'Chosen twice'); continue; }
     const signals = signalsOf(dev, mode);
     if (!signals) { fail(dev, 'other', `No ${mode} option`); continue; }
-    chosen.push({ dev, signals, mode });
+    chosen.push({ dev, signals, mode, ...(power ? { power } : {}) });
   }
   chosen.sort((a, b) => catalog.indexOf(a.dev) - catalog.indexOf(b.dev));
 
@@ -221,6 +233,22 @@ export function allocate(selection, catalog = DEVICES) {
     }
   }
 
+  // Plugs on the header: nothing else can use their pins
+  /** @type {Map<number, Device>} */
+  const plugged = new Map();
+  /** @type {Result['plugs']} */
+  const plugs = [];
+  for (const { dev } of chosen) {
+    if (!dev.plug || wrongBoard.has(dev)) continue;
+    const clash = dev.plug.pins.find((p) => plugged.has(p));
+    if (clash !== undefined) {
+      fail(dev, 'other', `Pin ${clash} is used by ${plugged.get(clash)?.short}`);
+      continue;
+    }
+    for (const p of dev.plug.pins) plugged.set(p, dev);
+    plugs.push({ device: dev.id, pins: dev.plug.pins });
+  }
+
   /** @type {Map<number, {device: Device, label: string, bus?: string}>} */
   const used = new Map();
 
@@ -232,6 +260,7 @@ export function allocate(selection, catalog = DEVICES) {
     const h = headerPin(gpio);
     if (!h) return `GPIO${gpio} is not on the header`;
     if (h.reserved) return `GPIO${gpio} is reserved`;
+    if (plugged.has(h.pin)) return `GPIO${gpio} is under ${plugged.get(h.pin)?.short}'s plug`;
     if (s.exclude?.includes(gpio)) return `can't use GPIO${gpio}`;
     const u = used.get(gpio);
     if (u && !(s.bus && u.bus === s.bus)) return `GPIO${gpio} is used by ${u.device.short} ${u.label}`;
@@ -249,7 +278,7 @@ export function allocate(selection, catalog = DEVICES) {
     const shared = used.get(gpio)?.device !== dev;
     assignments.push({
       device: dev.id, signal: s.id, label: s.label, devicePin: s.devicePin, type: 'gpio', gpio,
-      ...(covers(dev) ? { how: 'header' } : { pin: headerPin(gpio)?.pin, how }),
+      ...(covers(dev) ? { how: 'header' } : { pin: headerPin(gpio)?.pin, how, ...(s.pullUp ? { pullUp: s.pullUp } : {}) }),
       ...(shared ? { shared: true } : {}),
     });
   };
@@ -293,7 +322,7 @@ export function allocate(selection, catalog = DEVICES) {
   /** @param {Signal} s @param {number} gpio */
   const usable = (s, gpio) => {
     const h = headerPin(gpio);
-    return Boolean(h && !h.reserved && !s.exclude?.includes(gpio) && !used.has(gpio));
+    return Boolean(h && !h.reserved && !plugged.has(h.pin) && !s.exclude?.includes(gpio) && !used.has(gpio));
   };
   /** @param {number} gpio */
   const pinOf = (gpio) => /** @type {number} */ (headerPin(gpio)?.pin);
@@ -380,9 +409,14 @@ export function allocate(selection, catalog = DEVICES) {
   }
 
   // 6. Power and ground for wired devices (a board on the header gets them through it).
-  //    More than 2 modules on one supply (2 pins each): the breadboard is required. Each
-  //    supply with 2 or more modules gets a rail pair, wired to one supply pin and one ground
-  //    pin; a module alone on its supply keeps its own pins.
+  //    A plug's wires take the pins the plug puts them on. Each other module's power uses
+  //    the supply the viewer chose, or its default one; when a plug takes every pin of the
+  //    default supply, the next supply it can run on.
+  //    A module that sits on the breadboard (the ESP32 DevKit), or more than 2 modules on one
+  //    supply (2 pins each): the breadboard is required. Each supply with 2 or more modules
+  //    gets a rail pair, wired to one supply pin and one ground pin; a module alone on its
+  //    supply keeps its own pins. Pull-up resistors go to the 3V3 rail's + strip, which then
+  //    gets a 3V3 pin even without modules on it (and no ground pin).
   /** @type {Map<number, number>} */
   const pinUse = new Map();
   const uses = (/** @type {number} */ p) => pinUse.get(p) ?? 0;
@@ -391,10 +425,10 @@ export function allocate(selection, catalog = DEVICES) {
     assignments.filter((a) => ids.includes(a.device) && a.type === 'gpio' && a.pin !== undefined).map((a) => /** @type {number} */ (a.pin));
   /** The pin of this kind nearest to these pins; a pin nothing else uses first */
   const nearest = (/** @type {string} */ kind, /** @type {number[]} */ near, /** @type {number | undefined} */ preferred) => {
-    const candidates = pinsOfKind(kind);
+    const candidates = pinsOfKind(kind).filter((p) => !plugged.has(p));
     if (preferred && candidates.includes(preferred) && !uses(preferred)) return preferred;
     const away = (/** @type {number} */ p) => (near.length ? Math.min(...near.map((d) => pinDistance(d, p))) : 0);
-    return [...candidates].sort((a, b) => uses(a) - uses(b) || away(a) - away(b) || a - b)[0];
+    return /** @type {number | undefined} */ ([...candidates].sort((a, b) => uses(a) - uses(b) || away(a) - away(b) || a - b)[0]);
   };
   const take1 = (/** @type {number} */ pin) => {
     const shared = uses(pin) > 0;
@@ -403,53 +437,103 @@ export function allocate(selection, catalog = DEVICES) {
   };
 
   const wired = chosen.filter((c) => !covers(c.dev));
-  const supplyOf = (/** @type {Signal[]} */ signals) => signals.find((s) => s.type === 'power')?.power ?? (signals.some((s) => s.type === 'power') ? '3v3' : undefined);
+  /** Pins of a supply that no plug takes @param {'3v3' | '5v'} supply */
+  const freeOf = (supply) => pinsOfKind(supply).filter((p) => !plugged.has(p));
+  /** The supply of each wired device's power wire (not a plug's) @type {Map<Device, '3v3' | '5v'>} */
+  const supplies = new Map();
+  for (const { dev, signals, power } of wired) {
+    const s = signals.find((x) => x.type === 'power' && x.pin === undefined);
+    if (!s) continue;
+    const def = s.power ?? '3v3';
+    const options = s.supplies ?? [def];
+    let supply = power && options.includes(power) ? power : def;
+    if (!power && !freeOf(def).length) {
+      const next = options.find((x) => x !== def && freeOf(x).length);
+      if (next) {
+        supply = next;
+        const by = plugged.get(pinsOfKind(def)[0]);
+        const reason = `${s.label} is on ${SUPPLY_NAMES[next]} because ${by?.short} uses the ${SUPPLY_NAMES[def]} pins`;
+        warnings.push({ device: dev.id, reason, message: `${dev.short} ${reason}` });
+      }
+    }
+    supplies.set(dev, supply);
+  }
   /** @type {Record<'3v3' | '5v', string[]>} */
   const onSupply = { '3v3': [], '5v': [] };
-  for (const { dev, signals } of wired) {
-    const supply = supplyOf(signals);
-    if (supply) onSupply[supply].push(dev.id);
-  }
+  for (const [dev, supply] of supplies) onSupply[supply].push(dev.id);
+  const mounted = wired.filter((c) => c.dev.fit).map((c) => c.dev.id);
+  const pulled = wired.filter((c) => c.signals.some((s) => s.pullUp));
   /** @type {Breadboard} */
-  const breadboard = { required: onSupply['3v3'].length > 2 || onSupply['5v'].length > 2, rails: [] };
+  const breadboard = {
+    required: mounted.length > 0 || onSupply['3v3'].length > 2 || onSupply['5v'].length > 2,
+    rails: [],
+    bridge: false,
+    mounted,
+  };
+  // The headers of the module's own pins that take a pull-up: on both sides, the + rails are joined
+  const pullUpHeaders = new Set(pulled.flatMap((c) => c.signals.filter((s) => s.pullUp)
+    .flatMap((s) => (c.dev.pinout ?? []).filter((x) => x.name === s.devicePin).map((x) => x.header))));
+  breadboard.bridge = pullUpHeaders.size > 1;
 
   // Devices without header power (e.g. the ESP32's ground wire) keep their own pins first
-  const order = [...wired].sort((a, b) => Number(Boolean(supplyOf(a.signals))) - Number(Boolean(supplyOf(b.signals))));
+  const order = [...wired].sort((a, b) => Number(supplies.has(a.dev)) - Number(supplies.has(b.dev)));
   if (breadboard.required) {
     for (const rail of /** @type {const} */ (['3v3', '5v'])) {
-      const ids = onSupply[rail];
-      if (ids.length < 2) continue;
-      breadboard.rails.push({ rail, supply: 0, ground: 0, devices: ids });
+      const ids = onSupply[rail].length >= 2 ? onSupply[rail] : [];
+      const pullUps = rail === '3v3' ? pulled.map((c) => c.dev.id) : [];
+      if (!ids.length && !pullUps.length) continue;
+      const header = pullUpHeaders.size === 1 ? [...pullUpHeaders][0] : undefined;
+      breadboard.rails.push({ rail, supply: 0, devices: ids, pullUps, ...(header ? { header } : {}) });
+    }
+    if (breadboard.bridge && breadboard.rails.some((r) => r.rail === '5v')) {
+      errors.push({ code: 'other', message: 'Breadboard: both + rails carry 3V3 for the pull-up resistors, so there is no 5V rail' });
     }
   }
   for (const { dev, signals } of order) {
-    const supply = supplyOf(signals);
-    const onRail = breadboard.rails.some((r) => r.rail === supply);
+    const supply = supplies.get(dev);
+    const onRail = breadboard.rails.some((r) => r.rail === supply && r.devices.includes(dev.id));
     for (const s of signals) {
       if (s.type !== 'power' && s.type !== 'ground') continue;
-      if (onRail && supply) {
-        assignments.push({ device: dev.id, signal: s.id, label: s.label, devicePin: s.devicePin, type: s.type, rail: supply, how: 'breadboard' });
+      const power = s.type === 'power' ? { supply: s.pin === undefined && supply ? supply : (s.power ?? '3v3') } : {};
+      if (s.pin !== undefined) {
+        assignments.push({ device: dev.id, signal: s.id, label: s.label, devicePin: s.devicePin, type: s.type, pin: s.pin, how: 'plug', ...power });
         continue;
       }
-      const kind = s.type === 'ground' ? 'gnd' : (s.power ?? '3v3');
+      if (onRail && supply) {
+        assignments.push({ device: dev.id, signal: s.id, label: s.label, devicePin: s.devicePin, type: s.type, rail: supply, how: 'breadboard', ...power });
+        continue;
+      }
+      const kind = s.type === 'ground' ? 'gnd' : (supply ?? s.power ?? '3v3');
       const pin = nearest(kind, dataPinsOf([dev.id]), s.preferredPin);
+      if (pin === undefined) {
+        fail(dev, 'other', `No ${kind === 'gnd' ? 'GND' : SUPPLY_NAMES[/** @type {'3v3' | '5v'} */ (kind)]} pin left`);
+        continue;
+      }
       const shared = take1(pin);
       assignments.push({
-        device: dev.id, signal: s.id, label: s.label, devicePin: s.devicePin, type: s.type, pin, how: 'auto',
+        device: dev.id, signal: s.id, label: s.label, devicePin: s.devicePin, type: s.type, pin, how: 'auto', ...power,
         ...(shared ? { shared: true } : {}),
       });
     }
   }
   // Each rail pair: one supply pin and one ground pin, nearest to the modules it powers
   for (const r of breadboard.rails) {
-    const near = dataPinsOf(r.devices);
-    r.supply = nearest(r.rail, near, undefined);
-    take1(r.supply);
-    r.ground = nearest('gnd', near, undefined);
-    take1(r.ground);
+    const near = dataPinsOf([...r.devices, ...r.pullUps]);
+    const supply = nearest(r.rail, near, undefined);
+    const ground = r.devices.length ? nearest('gnd', near, undefined) : undefined;
+    if (supply === undefined || (r.devices.length && ground === undefined)) {
+      errors.push({ code: 'other', message: `Breadboard: no ${supply === undefined ? SUPPLY_NAMES[r.rail] : 'GND'} pin left for the ${SUPPLY_NAMES[r.rail]} rail` });
+      continue;
+    }
+    r.supply = supply;
+    take1(supply);
+    if (ground !== undefined) {
+      r.ground = ground;
+      take1(ground);
+    }
   }
 
-  return { ok: errors.length === 0, assignments, connectors, breadboard, errors, warnings };
+  return { ok: errors.length === 0, assignments, connectors, breadboard, plugs, errors, warnings };
 }
 
 /**
@@ -497,6 +581,23 @@ export function availability(selection, catalog = DEVICES) {
     if (dev.modes) out[dev.id].modes = perMode;
   }
   return out;
+}
+
+/**
+ * The supplies a device's power wire can be switched to (for the pins page), in the order
+ * the device lists them: those the rest of the setup leaves a pin for. Empty when the device
+ * has no choice.
+ * @param {Selection} selection
+ * @param {string} id   Device id
+ * @param {Device[]} [catalog]
+ * @returns {('3v3' | '5v')[]}
+ */
+export function supplyOptions(selection, id, catalog = DEVICES) {
+  const chosen = selection.devices.find((d) => d.id === id);
+  const dev = catalog.find((d) => d.id === id);
+  const s = chosen && dev ? signalsOf(dev, chosen.mode)?.find((x) => x.type === 'power' && x.pin === undefined) : undefined;
+  if (!s?.supplies || s.supplies.length < 2) return [];
+  return s.supplies.filter((power) => allocate({ ...selection, devices: selection.devices.map((d) => (d.id === id ? { ...d, power } : d)) }, catalog).ok);
 }
 
 /**

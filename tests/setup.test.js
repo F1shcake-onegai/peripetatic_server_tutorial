@@ -2,10 +2,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  HEADER, BOARDS, GPIO_PREFERENCE, GPIO_TIERS, pinOfGpio, pinDistance, DEVICES, allocate, availability, moveOptions, signalsOf, HAT_REASON,
+  HEADER, BOARDS, GPIO_PREFERENCE, GPIO_TIERS, pinOfGpio, pinDistance, DEVICES, allocate, availability, moveOptions, supplyOptions, signalsOf, HAT_REASON,
 } from '../src/data/setup/index.js';
 
 const ESP = 'esp32-c5-devkitc-1';
+const TD2 = 'rpi-touch-display-2';
+const PIR = 'adafruit-mini-pir-4871';
 const pinsOf = (result, device) =>
   Object.fromEntries(result.assignments.filter((a) => a.device === device).map((a) => [a.signal, a.pin]));
 
@@ -87,10 +89,10 @@ test('catalog: every ESP32 pin used for wiring is on the DevKit headers (v1.2 or
 const PACK = DEVICES.filter((d) => d.id.startsWith('waveshare-') && d.category === 'sensor');
 const PACK_DIGITAL = PACK.filter((d) => d.signals.some((s) => s.type === 'gpio')).map((d) => d.id);
 
-test('catalog: the 10 Sensors Pack modules with a digital output (analog-only ones left out)', () => {
-  assert.equal(PACK.length, 10);
-  assert.equal(PACK_DIGITAL.length, 10);
-  for (const id of ['waveshare-moisture', 'waveshare-uv', 'waveshare-liquid-level']) {
+test('catalog: the 9 Sensors Pack modules with a digital output (analog-only ones and the Gas Sensor left out)', () => {
+  assert.equal(PACK.length, 9);
+  assert.equal(PACK_DIGITAL.length, 9);
+  for (const id of ['waveshare-moisture', 'waveshare-uv', 'waveshare-liquid-level', 'waveshare-mq5-gas']) {
     assert.ok(!DEVICES.some((d) => d.id === id), id);
   }
 });
@@ -206,8 +208,43 @@ test('with the ESP32 over SPI, sensors avoid its pins and its ground', () => {
   const laser = pinsOf(r, 'waveshare-laser');
   assert.equal(laser.dout, 29); // GPIO5: the Laser Sensor comes first in the catalog
   assert.equal(tilt.dout, 16); // GPIO23
-  assert.notEqual(tilt.gnd, 25);
-  assert.notEqual(laser.gnd, tilt.gnd);
+  // The ESP32 makes the breadboard required: the two 3V3 sensors share the 3V3 rail, which
+  // also takes the CS pull-up; its ground pin isn't the ESP32's
+  assert.deepEqual(r.breadboard.rails.map((x) => [x.rail, x.devices, x.pullUps]), [['3v3', ['waveshare-laser', 'waveshare-tilt'], [ESP]]]);
+  assert.notEqual(r.breadboard.rails[0].ground, 25);
+});
+
+test('ESP32 over SPI: a 10 kΩ pull-up on CS; the DevKit sits on the breadboard, with 3V3 on the + rail on its J1 side', () => {
+  const r = allocate({ board: 'rpi5', devices: [{ id: ESP, mode: 'spi' }] });
+  assert.ok(r.ok, JSON.stringify(r.errors));
+  assert.deepEqual(r.assignments.filter((a) => a.pullUp).map((a) => [a.signal, a.pullUp]), [['cs', 10000]]);
+  assert.equal(r.breadboard.required, true);
+  assert.deepEqual(r.breadboard.mounted, [ESP]);
+  assert.equal(r.breadboard.bridge, false);
+  assert.equal(r.breadboard.rails.length, 1);
+  const [rail] = r.breadboard.rails;
+  assert.deepEqual([rail.rail, rail.devices, rail.pullUps, rail.header, rail.ground], ['3v3', [], [ESP], 'J1', undefined]);
+  assert.ok([1, 17].includes(rail.supply));
+});
+
+test('ESP32 over SDIO: pull-ups on CMD and DAT0-DAT3, on both sides of the DevKit: a jumper joins the + rails', () => {
+  const r = allocate({ board: 'rpi5', devices: [{ id: ESP, mode: 'sdio' }] });
+  assert.ok(r.ok, JSON.stringify(r.errors));
+  assert.deepEqual(r.assignments.filter((a) => a.pullUp).map((a) => a.signal).sort(), ['cmd', 'dat0', 'dat1', 'dat2', 'dat3']);
+  assert.ok(r.assignments.filter((a) => a.pullUp).every((a) => a.pullUp === 10000));
+  assert.equal(r.breadboard.bridge, true);
+  assert.deepEqual(r.breadboard.rails.map((x) => [x.rail, x.pullUps, x.header]), [['3v3', [ESP], undefined]]);
+});
+
+test('ESP32 with one 3V3 sensor: the sensor keeps the other 3V3 pin; a second one puts both on the rail', () => {
+  const one = allocate({ board: 'rpi5', devices: [{ id: ESP, mode: 'spi' }, { id: 'waveshare-hall' }] });
+  assert.ok(one.ok);
+  const hall = one.assignments.find((a) => a.device === 'waveshare-hall' && a.type === 'power');
+  assert.ok(hall?.pin !== undefined && !hall.rail);
+  assert.deepEqual([hall.pin, one.breadboard.rails[0].supply].sort(), [1, 17]);
+  const two = allocate({ board: 'rpi5', devices: [{ id: ESP, mode: 'spi' }, { id: 'waveshare-hall' }, { id: 'waveshare-tilt' }] });
+  assert.ok(two.assignments.filter((a) => a.type === 'power').every((a) => a.rail === '3v3'));
+  assert.equal(two.assignments.filter((a) => a.type === 'power' && a.pin !== undefined).length, 0);
 });
 
 test('breadboard: up to 2 modules per supply get their own pins (optional breadboard)', () => {
@@ -271,10 +308,10 @@ test('selection order does not change the result', () => {
   assert.deepEqual(a, b);
 });
 
-test('the whole Sensors Pack fits beside the ESP32 over SPI (24 of 26 GPIOs)', () => {
+test('the whole Sensors Pack fits beside the ESP32 over SPI (23 of 26 GPIOs)', () => {
   const r = allocate({ board: 'rpi5', devices: [{ id: ESP, mode: 'spi' }, ...PACK_DIGITAL.map((id) => ({ id }))] });
   assert.ok(r.ok, JSON.stringify(r.errors));
-  assert.equal(new Set(r.assignments.filter((a) => a.type === 'gpio').map((a) => a.gpio)).size, 24);
+  assert.equal(new Set(r.assignments.filter((a) => a.type === 'gpio').map((a) => a.gpio)).size, 23);
 });
 
 // --- Greying out -----------------------------------------------------------------
@@ -287,10 +324,10 @@ const needs = (id, n) => ({
 
 test('a device that no longer fits is greyed out with the reason', () => {
   const sel = { board: 'rpi5', devices: [{ id: ESP, mode: 'spi' }, ...PACK_DIGITAL.map((id) => ({ id }))] };
-  const catalog = CATALOG_WITH(needs('two-pins', 2), needs('three-pins', 3));
+  const catalog = CATALOG_WITH(needs('three-pins', 3), needs('four-pins', 4));
   const av = availability(sel, catalog);
-  assert.equal(av['two-pins'].ok, true);
-  assert.deepEqual(av['three-pins'], { ok: false, reason: 'Not enough GPIO pins', code: 'pins' });
+  assert.equal(av['three-pins'].ok, true);
+  assert.deepEqual(av['four-pins'], { ok: false, reason: 'Not enough GPIO pins', code: 'pins' });
 });
 
 test('SDIO takes GPIO 22-27: a module that needs GPIO22 is greyed out (with SPI, Handshake makes room)', () => {
@@ -391,25 +428,29 @@ test('Raspberry Pi 5: one PCIe connector, two camera/display connectors, four US
 });
 
 test('AI HAT+ 2 takes the PCIe connector; the camera and the display take the two ribbon connectors', () => {
-  const r = allocate({ board: 'rpi5', devices: [{ id: 'ai-hat-plus-2' }, { id: 'rpi-camera-module-3' }, { id: 'freenove-5in-dsi' }] });
+  const hat = allocate({ board: 'rpi5', devices: [{ id: 'ai-hat-plus-2' }, { id: 'rpi-camera-module-3' }] });
+  assert.ok(hat.ok, JSON.stringify(hat.errors));
+  assert.deepEqual(hat.connectors.map((c) => [c.device, c.name]), [['ai-hat-plus-2', 'PCIe'], ['rpi-camera-module-3', 'CAM/DISP 0']]);
+  const r = allocate({ board: 'rpi5', devices: [{ id: 'rpi-camera-module-3' }, { id: TD2 }] });
   assert.ok(r.ok, JSON.stringify(r.errors));
   assert.deepEqual(r.connectors.map((c) => [c.device, c.name]), [
-    ['ai-hat-plus-2', 'PCIe'],
-    ['freenove-5in-dsi', 'CAM/DISP 0'],
+    [TD2, 'CAM/DISP 0'],
     ['rpi-camera-module-3', 'CAM/DISP 1'],
   ]);
 });
 
 test('a third camera or display does not fit on a Raspberry Pi 5', () => {
   const two = { ...needs('second-camera', 0), category: 'camera', uses: { camera: 1 } };
-  const r = allocate({ board: 'rpi5', devices: [{ id: 'rpi-camera-module-3' }, { id: 'freenove-5in-dsi' }, { id: 'second-camera' }] }, CATALOG_WITH(two));
+  const r = allocate({ board: 'rpi5', devices: [{ id: 'rpi-camera-module-3' }, { id: TD2 }, { id: 'second-camera' }] }, CATALOG_WITH(two));
   assert.deepEqual(r.errors.map((e) => e.reason), ['Both CAM/DISP connectors are in use']);
 });
 
 test('Raspberry Pi Zero 2 W: a camera fits, a display does not', () => {
   assert.ok(allocate({ board: 'rpi-zero-2-w', devices: [{ id: 'rpi-camera-module-3' }] }).ok);
-  const r = allocate({ board: 'rpi-zero-2-w', devices: [{ id: 'freenove-5in-dsi' }] });
+  const r = allocate({ board: 'rpi-zero-2-w', devices: [{ id: TD2 }] });
   assert.deepEqual(r.errors.map((e) => e.reason), ['Requires a DISP connector on Raspberry Pi 5']);
+  // Greyed out on the peripherals page with that reason
+  assert.deepEqual(availability({ board: 'rpi-zero-2-w', devices: [] })[TD2], { ok: false, reason: 'Requires a DISP connector on Raspberry Pi 5', code: 'connector' });
   // The Zero 2 W's one connector, taken by a camera
   const two = { ...needs('second-camera', 0), category: 'camera', uses: { camera: 1 } };
   const z = allocate({ board: 'rpi-zero-2-w', devices: [{ id: 'rpi-camera-module-3' }, { id: 'second-camera' }] }, CATALOG_WITH(two));
@@ -436,9 +477,55 @@ test('Inky Impression 7.3": pins from Pimoroni\'s library', () => {
 });
 
 test('mini PIR: powered from 5V (output stays 3.3 V), one GPIO', () => {
-  const r = allocate({ board: 'rpi5', devices: [{ id: 'adafruit-mini-pir-4871' }] });
+  const r = allocate({ board: 'rpi5', devices: [{ id: PIR }] });
   assert.ok(r.ok);
-  assert.deepEqual(pinsOf(r, 'adafruit-mini-pir-4871'), { vcc: 4, gnd: 30, o: 29 });
+  assert.deepEqual(pinsOf(r, PIR), { vcc: 4, gnd: 30, o: 29 });
+  assert.equal(r.assignments.find((a) => a.device === PIR && a.type === 'power')?.supply, '5v');
+});
+
+test('mini PIR: the viewer can switch its power to 3V3; its GPIO stays', () => {
+  const sel = { board: 'rpi5', devices: [{ id: PIR }] };
+  assert.deepEqual(supplyOptions(sel, PIR), ['5v', '3v3']);
+  const r = allocate({ board: 'rpi5', devices: [{ id: PIR, power: '3v3' }] });
+  assert.ok(r.ok);
+  const power = r.assignments.find((a) => a.device === PIR && a.type === 'power');
+  assert.equal(power?.supply, '3v3');
+  assert.ok([1, 17].includes(/** @type {number} */ (power?.pin)));
+  assert.equal(pinsOf(r, PIR).o, pinsOf(allocate(sel), PIR).o);
+  assert.equal(r.warnings.length, 0);
+  // Devices without a choice
+  assert.deepEqual(supplyOptions({ board: 'rpi5', devices: [{ id: 'waveshare-tilt' }] }, 'waveshare-tilt'), []);
+});
+
+test('Touch Display 2: its power plug puts 5V on pin 2 and ground on pin 6, and covers pin 4', () => {
+  const r = allocate({ board: 'rpi5', devices: [{ id: TD2 }] });
+  assert.ok(r.ok, JSON.stringify(r.errors));
+  assert.deepEqual(r.assignments.map((a) => [a.signal, a.pin, a.how, a.supply]), [['vcc', 2, 'plug', '5v'], ['gnd', 6, 'plug', undefined]]);
+  assert.deepEqual(r.plugs, [{ device: TD2, pins: [2, 4, 6] }]);
+  assert.deepEqual(r.connectors, [{ device: TD2, kind: 'display', name: 'CAM/DISP 0' }]);
+  assert.equal(r.breadboard.required, false);
+});
+
+test('Touch Display 2: the PIR moves to 3V3, with a note; nothing else uses pins 2, 4 or 6', () => {
+  const r = allocate({ board: 'rpi5', devices: [{ id: TD2 }, { id: PIR }, { id: 'waveshare-hall' }, { id: 'ublox-neo-6m-gps' }] });
+  assert.ok(r.ok, JSON.stringify(r.errors));
+  const power = r.assignments.find((a) => a.device === PIR && a.type === 'power');
+  assert.equal(power?.supply, '3v3');
+  assert.deepEqual(r.warnings.filter((w) => w.device === PIR).map((w) => w.reason), ['Power is on 3V3 because Display uses the 5V pins']);
+  assert.ok(r.assignments.filter((a) => a.device !== TD2).every((a) => ![2, 4, 6].includes(/** @type {number} */ (a.pin))));
+  // 3 modules on 3V3 now: the breadboard is required, with a 3V3 rail only
+  assert.equal(r.breadboard.required, true);
+  assert.deepEqual(r.breadboard.rails.map((x) => x.rail), ['3v3']);
+  // 5V isn't offered while the display is chosen
+  assert.deepEqual(supplyOptions({ board: 'rpi5', devices: [{ id: TD2 }, { id: PIR }] }, PIR), ['3v3']);
+  const forced = allocate({ board: 'rpi5', devices: [{ id: TD2 }, { id: PIR, power: '5v' }] });
+  assert.deepEqual(forced.errors.map((e) => e.reason), ['No 5V pin left']);
+});
+
+test('Touch Display 2: a board covering the header leaves no room for its power plug', () => {
+  const r = allocate({ board: 'rpi5', devices: [{ id: 'waveshare-2in13-touch-epaper-hat' }, { id: TD2 }] });
+  assert.deepEqual(r.errors.map((e) => [e.device, e.reason]), [[TD2, 'GPIO header is covered by e-Paper HAT']]);
+  assert.equal(availability({ board: 'rpi5', devices: [{ id: TD2 }] })['waveshare-2in13-touch-epaper-hat'].reason, HAT_REASON);
 });
 
 test('GPS: UART on GPIO14/15 (pins 8 and 10), powered from 3V3', () => {

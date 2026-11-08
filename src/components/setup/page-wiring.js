@@ -4,8 +4,10 @@
 // browser; a tick belongs to its wire, so moving a pin later un-ticks only that wire.
 // Chapter 0's own blocks are reused where they're marked with <WiringSource> (see that
 // component): the power-off sentence, the ESP32 notes and the AI HAT+ 2 mounting steps.
+// A device's own text in the catalog (`connect`, `plug.steps`) is used for its ribbon cable
+// and its plug.
 import { DEVICES, BOARDS, allocate, toSelection, pinViews, load, wiringSteps, RAIL_NAMES } from '../../data/setup/index.js';
-import { esc, local } from './common.js';
+import { esc, ohms, local } from './common.js';
 import { alignBadges, headerMap, moduleColours } from './header-map.js';
 
 /** @typedef {import('../../data/setup/wiring.js').Step} Step */
@@ -23,7 +25,7 @@ const HEADINGS = 'h1, h2, h3, h4, h5, h6';
  * @property {string} [count]      e.g. 'wire 2 of 3'
  * @property {Node[]} title
  * @property {Node[]} body
- * @property {number} [pin]        Header pin to light on the map
+ * @property {number[]} [pins]     Header pins to light on the map
  */
 
 /** @returns {{at: string | null, done: string[]}} */
@@ -122,6 +124,22 @@ export function mountWiring(root) {
     return `${name} (${at.length > 1 ? `${at.slice(0, -1).join(', ')} or ${at.at(-1)}` : at[0]})`;
   };
 
+  /** A module's own notes from chapter 0 (e.g. the ESP32's) come before its first step @param {Device} dev */
+  const introduce = (dev) => {
+    if (introduced.has(dev.id)) return;
+    introduced.add(dev.id);
+    const src = source(dev.id);
+    const mode = setup.devices.find((d) => d.id === dev.id)?.mode;
+    const extra = mode ? source(`${dev.id}:${mode}`) : null;
+    if (src || extra) {
+      list.push({
+        key: `intro:${dev.id}${mode ? `:${mode}` : ''}`, device: dev.id,
+        title: src?.title ?? extra?.title ?? [document.createTextNode(dev.name)],
+        body: [...(src?.nodes ?? []), ...(extra?.nodes ?? [])],
+      });
+    }
+  };
+
   for (const s of wiringSteps(selection, result)) {
     const dev = s.device ? byId[s.device] : undefined;
     if (s.kind === 'start') {
@@ -142,6 +160,9 @@ export function mountWiring(root) {
         }));
       } else if (src) {
         list.push({ key: s.key, device: dev.id, title: src.title ?? [document.createTextNode(dev.name)], body: src.nodes });
+      } else if (dev.connect && s.connector) {
+        const connector = s.connector;
+        list.push({ key: s.key, device: dev.id, title: [document.createTextNode('Ribbon cable')], body: dev.connect.map((t) => p(t.replaceAll('{connector}', connector))) });
       } else {
         const how = {
           header: "Fit it onto the Pi's GPIO header.",
@@ -152,14 +173,17 @@ export function mountWiring(root) {
         }[s.how ?? 'header'];
         list.push({ key: s.key, device: dev.id, title: [document.createTextNode(dev.name)], body: [p(how)] });
       }
+    } else if (s.kind === 'plug' && dev?.plug) {
+      list.push({ key: s.key, device: dev.id, title: [document.createTextNode('Power cable')], body: dev.plug.steps.map(p), pins: s.pins });
     } else if (s.kind === 'breadboard') {
       if (s.required) {
         list.push({
           key: s.key,
           title: [document.createTextNode('Breadboard')],
           body: [
+            ...(s.mounted ?? []).map((id) => p(`The ${shortOf(id)} sits on the breadboard${result.breadboard.rails.some((r) => r.pullUps.includes(id)) ? ', and its pull-up resistors go to the + rail' : ''}.`)),
             ...(s.over ?? []).map((o) => p(`The Pi has two ${RAIL_NAMES[o.supply]} pins, and ${o.modules} modules need ${RAIL_NAMES[o.supply]}.`)),
-            p("Modules that share a supply take power and ground from the breadboard's rails. A module alone on its supply is wired straight to the Pi."),
+            ...(s.powered ? [p("Modules that share a supply take power and ground from the breadboard's rails. A module alone on its supply is wired straight to the Pi.")] : []),
           ],
         });
       } else {
@@ -171,28 +195,27 @@ export function mountWiring(root) {
       }
     } else if (s.kind === 'rail' && s.rail && s.pin) {
       const rail = `${RAIL_NAMES[s.rail]} rail (${s.side})`;
-      list.push({ key: s.key, group: 'Breadboard', title: [document.createTextNode(rail)], body: [wire(piPin(s.pin), rail)], pin: s.pin });
+      const side = s.header && s.pullUps?.length ? [p(`Use the + rail on the ${s.header} side of the ${s.pullUps.map(shortOf).join(' and ')}.`)] : [];
+      list.push({ key: s.key, group: 'Breadboard', title: [document.createTextNode(rail)], body: [wire(piPin(s.pin), rail), ...side], pins: [s.pin] });
+    } else if (s.kind === 'bridge') {
+      list.push({
+        key: s.key, group: 'Breadboard', title: [document.createTextNode('Rail jumper')],
+        body: [p('Connect the + rail on one side of the breadboard to the + rail on the other side with a jumper wire. Both + rails now carry 3V3 for the pull-up resistors.')],
+      });
+    } else if (s.kind === 'fit' && dev?.fit) {
+      introduce(dev);
+      list.push({ key: s.key, device: dev.id, title: [document.createTextNode('On the breadboard')], body: dev.fit.map(p) });
     } else if (s.kind === 'wire' && dev) {
-      // A module's own notes from chapter 0 (e.g. the ESP32's) come before its first wire
-      if (!introduced.has(dev.id)) {
-        introduced.add(dev.id);
-        const src = source(dev.id);
-        const mode = setup.devices.find((d) => d.id === dev.id)?.mode;
-        const extra = mode ? source(`${dev.id}:${mode}`) : null;
-        if (src || extra) {
-          list.push({
-            key: `intro:${dev.id}${mode ? `:${mode}` : ''}`, device: dev.id,
-            title: src?.title ?? extra?.title ?? [document.createTextNode(dev.name)],
-            body: [...(src?.nodes ?? []), ...(extra?.nodes ?? [])],
-          });
-        }
-      }
+      introduce(dev);
       const to = s.rail ? `${RAIL_NAMES[s.rail]} rail (${s.side}) on the breadboard` : piPin(/** @type {number} */ (s.pin));
       list.push({
         key: s.key, device: dev.id, count: `wire ${s.index} of ${s.count}`,
-        title: [document.createTextNode(s.label ?? '')],
-        body: [wire(onModule(dev, s.devicePin ?? ''), to)],
-        ...(s.pin ? { pin: s.pin } : {}),
+        title: [document.createTextNode(s.pullUp ? `${s.label} and its pull-up` : s.label ?? '')],
+        body: [
+          wire(onModule(dev, s.devicePin ?? ''), to),
+          ...(s.pullUp ? [p(`Push one leg of a ${ohms(s.pullUp)} resistor into the same hole as the wire, and the other leg into the + rail on that side.`)] : []),
+        ],
+        ...(s.pin ? { pins: [s.pin] } : {}),
       });
     } else if (s.kind === 'usb' && dev) {
       list.push({ key: s.key, device: dev.id, title: [document.createTextNode('USB cable')], body: [p(`Connect the ${shortOf(dev.id)} to a USB port on the Pi with a USB cable.`)] });
@@ -229,13 +252,14 @@ export function mountWiring(root) {
     const text = el('div', 'pst-wstep-text', [head, title, el('div', 'pst-wstep-body', v.body)]);
     const step = el('section', 'pst-wstep', [text]);
     step.dataset.key = v.key;
-    if (v.pin) {
+    if (v.pins?.length) {
       const map = el('div', 'pst-wstep-map not-content');
       map.setAttribute('aria-hidden', 'true');
       map.innerHTML = headerMap(views, colours, board?.name ?? '', { interactive: false, title: false });
-      // Only this wire's pin is lit and keeps its badges, which keeps the map narrow
+      // Only this step's pins are lit and keep their badges, which keeps the map narrow
+      const pins = v.pins;
       for (const e of /** @type {NodeListOf<HTMLElement>} */ (map.querySelectorAll('[data-pin]'))) {
-        const lit = Number(e.dataset.pin) === v.pin;
+        const lit = pins.includes(Number(e.dataset.pin));
         e.classList.toggle('pst-lit', lit);
         e.classList.toggle('pst-dim', !lit);
         if (!lit && e.classList.contains('pst-label')) {

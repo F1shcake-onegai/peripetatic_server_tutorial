@@ -1,7 +1,8 @@
 // @ts-check
 // What the setup page's header picture shows on each of the 40 pins: the pin's name and
 // kind, and who uses it. Power and ground wired to breadboard rails show one rail badge
-// ("3V3 rail (+)") instead of a badge per module.
+// ("3V3 rail (+)") instead of a badge per module. A pin under a plug without a wire of its
+// own (pin 4 under the Touch Display 2's power plug) shows the plug's device.
 import { HEADER } from './header.js';
 import { DEVICES } from './devices.js';
 import { signalsOf } from './allocate.js';
@@ -19,7 +20,7 @@ import { signalsOf } from './allocate.js';
  * @property {string} short       The device's short name
  * @property {string} label       The signal's label
  * @property {string} devicePin
- * @property {Assignment['how']} how
+ * @property {Assignment['how']} how   'plug' also for a pin the plug only covers
  * @property {boolean} movable    The viewer can move it to another GPIO
  */
 
@@ -91,12 +92,20 @@ export function pinViews(selection, result, catalog = DEVICES) {
         movable: Boolean(signal && signal.type === 'gpio' && signal.fixed === undefined && a.how !== 'header'),
       });
     }
+    for (const plug of result.plugs) {
+      if (!plug.pins.includes(h.pin) || users.some((u) => u.device === plug.device)) continue;
+      users.push({
+        key: `${plug.device}.plug`, device: plug.device, short: byId.get(plug.device)?.short ?? plug.device,
+        label: 'Covered by the plug', devicePin: '', how: 'plug', movable: false,
+      });
+    }
 
     /** @type {PinRail | undefined} */
     let rail;
     for (const r of result.breadboard.rails) {
-      if (r.supply === h.pin) rail = { rail: r.rail, side: '+', devices: r.devices };
-      if (r.ground === h.pin) rail = { rail: r.rail, side: '−', devices: r.devices };
+      // Devices on the rail: those it powers and those whose pull-ups go to it
+      if (r.supply === h.pin) rail = { rail: r.rail, side: '+', devices: [...r.devices, ...r.pullUps] };
+      if (r.ground !== undefined && r.ground === h.pin) rail = { rail: r.rail, side: '−', devices: r.devices };
     }
 
     const badge = rail

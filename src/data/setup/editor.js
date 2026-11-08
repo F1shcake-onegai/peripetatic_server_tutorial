@@ -4,6 +4,7 @@
 // or whose mode changes, are dropped: its signals change.
 import { DEVICES } from './devices.js';
 import { keepPins } from './store.js';
+import { signalsOf } from './allocate.js';
 
 /** @typedef {import('./store.js').Setup} Setup */
 /** @typedef {import('./devices.js').Device} Device */
@@ -94,7 +95,28 @@ export function moveSignal(setup, key, gpio, catalog = DEVICES) {
   return movePin(keepPins(setup, undefined, catalog), key, gpio);
 }
 
-/** Forget moved and kept pins: everything is placed automatically again. @param {Setup} setup */
+/**
+ * Switch a device's power wire to a supply it can run on, without moving anything else
+ * (like moveSignal). Its default supply, or undefined, goes back to automatic.
+ * @param {Setup} setup @param {string} id @param {'3v3' | '5v' | undefined} power
+ * @param {Device[]} [catalog]
+ * @returns {Setup}
+ */
+export function setPower(setup, id, power, catalog = DEVICES) {
+  const kept = keepPins(setup, undefined, catalog);
+  const dev = catalog.find((d) => d.id === id);
+  return {
+    ...kept,
+    devices: kept.devices.map((d) => {
+      if (d.id !== id) return d;
+      const { power: _, ...rest } = d;
+      const s = dev ? signalsOf(dev, d.mode)?.find((x) => x.type === 'power' && x.supplies) : undefined;
+      return power && s?.supplies?.includes(power) && power !== (s.power ?? '3v3') ? { ...rest, power } : rest;
+    }),
+  };
+}
+
+/** Forget moved and kept pins and chosen supplies: everything is placed automatically again. @param {Setup} setup */
 export function resetPins(setup) {
-  return { ...setup, moved: {}, kept: {} };
+  return { ...setup, devices: setup.devices.map(({ power: _, ...d }) => d), moved: {}, kept: {} };
 }

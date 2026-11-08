@@ -15,7 +15,8 @@ import { allocate, signalsOf } from './allocate.js';
  * @property {number} version
  * @property {string} board                     'rpi5' or 'rpi-zero-2-w'
  * @property {'student' | 'server' | null} track
- * @property {{id: string, mode?: string}[]} devices
+ * @property {{id: string, mode?: string, power?: '3v3' | '5v'}[]} devices   `power`: the supply the
+ *   viewer chose for the device's power wire, when it isn't the default one
  * @property {Record<string, number>} moved     Pins the viewer moved by hand
  * @property {Record<string, number>} kept      Pins given when the setup was saved
  */
@@ -78,12 +79,11 @@ export function validate(raw, catalog = DEVICES) {
   for (const d of Array.isArray(v.devices) ? v.devices : []) {
     const dev = catalog.find((x) => x.id === d?.id);
     if (!dev || setup.devices.some((x) => x.id === dev.id)) continue;
-    if (dev.modes) {
-      const mode = typeof d.mode === 'string' && d.mode in dev.modes ? d.mode : Object.keys(dev.modes)[0];
-      setup.devices.push({ id: dev.id, mode });
-    } else {
-      setup.devices.push({ id: dev.id });
-    }
+    const mode = dev.modes ? (typeof d.mode === 'string' && d.mode in dev.modes ? d.mode : Object.keys(dev.modes)[0]) : undefined;
+    // A supply the device's power can run on, other than its default
+    const ps = signalsOf(dev, mode)?.find((s) => s.type === 'power' && s.supplies);
+    const power = ps?.supplies?.includes(d.power) && d.power !== (ps.power ?? '3v3') ? d.power : undefined;
+    setup.devices.push({ id: dev.id, ...(mode ? { mode } : {}), ...(power ? { power } : {}) });
   }
 
   // Only pins of movable signals of chosen devices, on usable header GPIOs

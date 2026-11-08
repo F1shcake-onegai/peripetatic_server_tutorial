@@ -129,7 +129,7 @@ A new tab group that depends on the setup needs its labels in `TAB_LABELS`, exac
 
 ### Chapter 0: the wiring steps
 
-With a saved setup, chapter 0 shows the wiring steps instead of its own content: before you start, parts without jumper wires (boards on the header, ribbon cables, USB devices), the breadboard, then each module one wire at a time (power, ground, data). Readers tick each step; the ticks stay in their browser. The steps reuse chapter 0's text where it's marked:
+With a saved setup, chapter 0 shows the wiring steps instead of its own content: before you start, parts without jumper wires (boards on the header, ribbon cables, USB devices, and a plug on the header such as the Touch Display 2's power cable), the breadboard and its rail wires, then each module one wire at a time (power, ground, data). A module that sits on the breadboard (the ESP32 DevKit) gets a step that fits it there first, and a pin that needs a pull-up has its resistor in the same step as its wire. Readers tick each step; the ticks stay in their browser. The steps reuse chapter 0's text where it's marked:
 
 | Marker | Used for |
 |---|---|
@@ -140,6 +140,8 @@ With a saved setup, chapter 0 shows the wiring steps instead of its own content:
 | `<WiringSource id="<device id>:<mode>">` | Added to that step in this mode, e.g. `esp32-c5-devkitc-1:spi` |
 
 Several blocks with the same id are joined in page order. A heading among them becomes the step's title, with its footnote. Marking a block doesn't change how chapter 0 looks without a setup.
+
+Hardware that chapter 0 doesn't describe can bring its own text in `devices.js`: `connect` for its ribbon cable step and `plug.steps` for its plug step (see the Touch Display 2).
 
 ### Adding a GPIO module
 
@@ -159,10 +161,13 @@ Several blocks with the same id are joined in page order. A heading among them b
     ```
 
 2. Each signal is one wire. `type` is `gpio`, `power` (with `power: '3v3'` or `'5v'`), `ground`, or `analog` (never wired: the Raspberry Pi has no analog inputs). A GPIO signal is fixed (`fixed: 10`), has a default the reader can move (`default: 22`), or gets a free pin. The helpers `vcc33`, `ground()`, `dout()`, `aout()` and `fixed()` cover the common cases.
-3. Optional fields: `versions` (board versions shown next to the name), `boards` (if it only works on some boards), `oneOf` (only one of these can be chosen), `header: { covers: true, passthrough: false }` (sits on the header; `passthrough: true` if its extension pins keep the header usable), `uses` (PCIe, camera, display or USB connectors), `protocol` and `modes` (interfaces such as SPI and SDIO), `pinout` (the module's own header pins, shown in the wiring steps).
-4. Run `npm test`. The tests check every setup that can be chosen with up to 3 peripherals.
+    - A power signal that also runs on the other supply lists both in `supplies`, default first, e.g. `power: '5v', supplies: ['5v', '3v3']` (the PIR sensor). The reader can switch it on the Assigned pins page, and it switches by itself when a plug takes every pin of its default supply.
+    - A power or ground signal that must use one header pin has `pin: 2`. This is for a plug's wires.
+    - A signal that needs a pull-up resistor to 3.3 V on the breadboard has `pullUp: 10000` (ohms). The resistor goes in the same hole as its wire, and its other leg in the + rail, which gets 3V3 from the Pi. Pull-ups on both of a module's headers (from its `pinout`) add a jumper between the two + rails. Check the module's schematic first: most modules have their pull-ups on board.
+3. Optional fields: `versions` (board versions shown next to the name), `boards` (if it only works on some boards), `oneOf` (only one of these can be chosen), `header: { covers: true, passthrough: false }` (sits on the header; `passthrough: true` if its extension pins keep the header usable), `uses` (PCIe, camera, display or USB connectors), `protocol` and `modes` (interfaces such as SPI and SDIO), `pinout` (the module's own header pins, shown in the wiring steps), `plug: { pins: [2, 4, 6], steps: [...] }` (a plug on the header: the pins it covers, which nothing else can use, and its wiring step's text), `connect` (the text of its ribbon cable step; `{connector}` becomes the connector's name), `fit` (it sits on the breadboard, which is then required: the text of the step that fits it there).
+4. Run `npm test`. The tests check every setup that can be chosen with up to 3 peripherals. The deploy workflow runs them too, and publishes nothing when one fails.
 
-The planner gives pins and greys out what doesn't fit by itself: GPIOs, power, the breadboard rule (more than 2 modules on 3V3 or on 5V need the breadboard's rails), and the wiring steps.
+The planner gives pins and greys out what doesn't fit by itself: GPIOs, power, the breadboard rule, and the wiring steps. The breadboard is required when a module sits on it (the ESP32 DevKit) or more than 2 modules take 3V3 or 5V (the header has 2 pins of each). Then each supply with 2 or more modules goes through its rail, a module alone on its supply keeps its own pin, and pull-ups take the 3V3 + rail.
 
 ### Where the code is
 

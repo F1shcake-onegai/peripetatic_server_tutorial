@@ -187,3 +187,11 @@ test('School Server needs a Raspberry Pi 5: with a Zero 2 W the track is left un
   assert.deepEqual(s?.devices, [{ id: 'rpi-camera-module-3' }]);
   assert.equal(validate(setupWith({ board: 'rpi5', track: 'server' }))?.track, 'server');
 });
+
+test('validate: a chosen supply is kept only when the device can run on it and it isn\'t the default', () => {
+  const PIR = 'adafruit-mini-pir-4871';
+  const v = validate(setupWith({ devices: [{ id: PIR, power: '3v3' }, { id: 'waveshare-tilt', power: '5v' }] }));
+  assert.deepEqual(v?.devices, [{ id: PIR, power: '3v3' }, { id: 'waveshare-tilt' }]);
+  assert.deepEqual(validate(setupWith({ devices: [{ id: PIR, power: '5v' }] }))?.devices, [{ id: PIR }]);
+  assert.deepEqual(validate(setupWith({ devices: [{ id: PIR, power: '12v' }] }))?.devices, [{ id: PIR }]);
+});

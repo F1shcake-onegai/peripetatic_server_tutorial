@@ -1,17 +1,19 @@
 // @ts-check
 // Setup page 3 (/setup/pins/): the pins the planner gave. The header map is on the left
 // (pinout.xyz style), the components on the right, with a dropdown on every pin that can
-// move. Hovering or clicking a component's name greys out every other pin; clicking a pin
-// on the map greys out the other modules and lights the free pins it can move to.
+// move, and on a power wire that can run on another supply. Hovering or clicking a
+// component's name greys out every other pin; clicking a pin on the map greys out the other
+// modules and lights the free pins it can move to.
 import {
-  DEVICES, BOARDS, HEADER, allocate, toSelection, keepPins, moveOptions, moveSignal, resetPins,
+  DEVICES, BOARDS, HEADER, allocate, toSelection, keepPins, moveOptions, moveSignal, setPower, supplyOptions, resetPins,
   pinViews, pinOfGpio, signalsOf, RAIL_NAMES, load, save, clear, clearDraft,
 } from '../../data/setup/index.js';
-import { esc, urlsOf, currentSetup, keepDraft, stepper, chooseFirst, local, session } from './common.js';
+import { esc, ohms, urlsOf, currentSetup, keepDraft, stepper, chooseFirst, local, session } from './common.js';
 import { BREADBOARD, alignBadges, headerMap, moduleColours } from './header-map.js';
 
 /** @typedef {import('../../data/setup/store.js').Setup} Setup */
 /** @typedef {import('../../data/setup/allocate.js').Result} Result */
+/** @typedef {import('../../data/setup/allocate.js').Assignment} Assignment */
 /** @typedef {import('../../data/setup/picture.js').PinView} PinView */
 
 const byId = Object.fromEntries(DEVICES.map((d) => [d.id, d]));
@@ -46,6 +48,16 @@ export function mountPins(root) {
     if (!setup) return new Set();
     const own = allocate(toSelection(setup)).assignments.find((a) => `${a.device}.${a.signal}` === key)?.gpio;
     return new Set(moveOptions(toSelection(keepPins(setup)), key).filter((g) => g !== own));
+  };
+
+  /** Where a power or ground wire goes, e.g. 'Pin 2 · 5V' @param {Assignment} a */
+  const whereOf = (a) => (a.rail
+    ? `Breadboard ${RAIL_NAMES[a.rail]} rail (${a.type === 'power' ? '+' : '−'})`
+    : `Pin ${a.pin} · ${a.type === 'ground' ? 'GND' : RAIL_NAMES[a.supply ?? '3v3']}`);
+  /** Where a device's power wire would go on another supply @param {string} id @param {'3v3' | '5v'} power */
+  const powerOn = (id, power) => {
+    const r = allocate(toSelection(setPower(/** @type {Setup} */ (setup), id, power)));
+    return r.assignments.find((a) => a.device === id && a.type === 'power');
   };
 
   // --- Rendering ------------------------------------------------------------------
@@ -105,13 +117,21 @@ export function mountPins(root) {
   /** @param {Result} result */
   const breadboard = (result) => {
     if (!result.breadboard.required) return '';
+    const names = (/** @type {string[]} */ ids) => ids.map((id) => esc(byId[id].short)).join(', ');
+    const note = (/** @type {string} */ text) => `<tr class="pst-row-note"><td colspan="2">${text}</td></tr>`;
     const rows = result.breadboard.rails.map((r) => `
       <tr><td>${RAIL_NAMES[r.rail]} rail (+)</td><td>Pin ${r.supply} · ${RAIL_NAMES[r.rail]}</td></tr>
-      <tr><td>${RAIL_NAMES[r.rail]} rail (−)</td><td>Pin ${r.ground} · GND</td></tr>
-      <tr class="pst-row-note"><td colspan="2">On the ${RAIL_NAMES[r.rail]} rail: ${r.devices.map((id) => esc(byId[id].short)).join(', ')}</td></tr>`).join('');
+      ${r.ground !== undefined ? `<tr><td>${RAIL_NAMES[r.rail]} rail (−)</td><td>Pin ${r.ground} · GND</td></tr>` : ''}
+      ${r.devices.length ? note(`On the ${RAIL_NAMES[r.rail]} rail: ${names(r.devices)}`) : ''}
+      ${r.pullUps.length ? note(`Pull-up resistors of ${names(r.pullUps)} go to the + rail${r.header ? ` on the ${esc(r.header)} side` : ''}`) : ''}`).join('');
+    const extra = [
+      ...result.breadboard.mounted.map((id) => `<p class="pst-muted">${esc(byId[id].short)} sits on the breadboard</p>`),
+      ...(result.breadboard.bridge ? ['<p class="pst-muted">A jumper joins the two + rails</p>'] : []),
+    ].join('');
     return `<section class="pst-part" data-device="${BREADBOARD}">
       <h3><button type="button" class="pst-part-name" id="pst-name-${BREADBOARD}" data-focus="${BREADBOARD}"><span class="pst-dot pst-dot-rail" aria-hidden="true"></span>Breadboard</button></h3>
       <table><thead><tr><th>Rail</th><th>Raspberry Pi</th></tr></thead><tbody>${rows}</tbody></table>
+      ${extra}
     </section>`;
   };
 
@@ -124,20 +144,28 @@ export function mountPins(root) {
     const rows = mine.map((a) => {
       const key = `${a.device}.${a.signal}`;
       let where;
-      if (a.rail) where = `Breadboard ${RAIL_NAMES[a.rail]} rail (${a.type === 'power' ? '+' : '−'})`;
-      else if (a.type === 'gpio' && movable.has(key) && a.gpio !== undefined) {
+      const supplies = a.type === 'power' && setup ? supplyOptions(toSelection(keepPins(setup)), id) : [];
+      if (supplies.length > 1) {
+        const chose = setup?.devices.find((x) => x.id === id)?.power;
+        where = `<select id="pst-power-${id}" data-power="${esc(id)}" aria-label="${esc(`${d.short} ${a.label}`)}">
+          ${supplies.map((p) => {
+            const there = p === a.supply ? a : powerOn(id, p);
+            return `<option value="${p}" ${p === a.supply ? 'selected' : ''}>${esc(there ? whereOf(there) : RAIL_NAMES[p])}</option>`;
+          }).join('')}
+        </select>${chose ? ' <span class="pst-muted">moved</span>' : ''}`;
+      } else if (a.type !== 'gpio') where = whereOf(a);
+      else if (movable.has(key) && a.gpio !== undefined) {
         const gpios = [a.gpio, ...targetsOf(key)].sort((x, y) => (pinOfGpio(x) ?? 0) - (pinOfGpio(y) ?? 0));
         where = `<select id="pst-move-${key.replace('.', '-')}" data-key="${esc(key)}" aria-label="${esc(`${d.short} ${a.label}`)}">
           ${gpios.map((g) => `<option value="${g}" ${g === a.gpio ? 'selected' : ''}>Pin ${pinOfGpio(g)} · GPIO${g}</option>`).join('')}
         </select>${a.how === 'moved' ? ' <span class="pst-muted">moved</span>' : ''}`;
-      } else if (a.type === 'gpio') where = `Pin ${a.pin ?? pinOfGpio(/** @type {number} */ (a.gpio))} · GPIO${a.gpio}`;
-      else {
-        const power = signalsOf(d, mode)?.find((x) => x.id === a.signal)?.power ?? '3v3';
-        where = `Pin ${a.pin} · ${a.type === 'ground' ? 'GND' : RAIL_NAMES[power]}`;
-      }
+      } else where = `Pin ${a.pin ?? pinOfGpio(/** @type {number} */ (a.gpio))} · GPIO${a.gpio}`;
+      if (a.pullUp) where += ` <span class="pst-muted">+ ${ohms(a.pullUp)} pull-up</span>`;
       return `<tr data-key="${esc(key)}"><td>${esc(a.label)}</td><td>${esc(a.devicePin)}</td><td>${where}</td></tr>`;
     }).join('');
     const uses = result.connectors.filter((c) => c.device === id).map((c) => c.name);
+    const plug = result.plugs.find((x) => x.device === id)?.pins;
+    const pinList = plug ? (plug.length > 1 ? `${plug.slice(0, -1).join(', ')} and ${plug.at(-1)}` : String(plug[0])) : '';
     const notes = result.warnings.filter((w) => w.device === id).map((w) => w.reason ?? w.message);
     const bad = result.errors.some((e) => e.device === id);
     const dot = colours.has(id) ? `<span class="pst-dot pst-m${colourOf(id)}" aria-hidden="true"></span>` : '';
@@ -145,6 +173,7 @@ export function mountPins(root) {
       <h3><button type="button" class="pst-part-name" id="pst-name-${id}" data-focus="${id}">${dot}${esc(d.short)}</button></h3>
       ${rows ? `<table><thead><tr><th>Signal</th><th>Device pin</th><th>Raspberry Pi</th></tr></thead><tbody>${rows}</tbody></table>` : ''}
       ${uses.length ? `<p class="pst-muted">Using ${esc(uses.join(', '))}</p>` : ''}
+      ${plug ? `<p class="pst-muted">Its plug covers pins ${pinList}</p>` : ''}
       ${notes.map((n) => `<p class="pst-muted">${esc(n)}</p>`).join('')}
     </section>`;
   };
@@ -159,7 +188,7 @@ export function mountPins(root) {
     const status = message || (!result.ok ? 'Fix the pins marked in red to save.' : dirty ? 'Not saved yet.' : 'Saved.');
     return `<div class="pst-nav">
       <a class="pst-btn" href="${esc(urls.peripherals)}">Back</a>
-      <button type="button" class="pst-btn" id="pst-reset-pins" ${Object.keys(s.moved).length || Object.keys(s.kept).length ? '' : 'disabled'}>Reset pins</button>
+      <button type="button" class="pst-btn" id="pst-reset-pins" ${Object.keys(s.moved).length || Object.keys(s.kept).length || s.devices.some((d) => d.power) ? '' : 'disabled'}>Reset pins</button>
       <button type="button" class="pst-btn" id="pst-clear">Clear all</button>
       <button type="button" class="pst-btn pst-primary" id="pst-save" ${result.ok && dirty ? '' : 'disabled'}>Save setup</button>
       <p class="pst-status" role="status">${esc(status)}</p>
@@ -234,8 +263,10 @@ export function mountPins(root) {
 
   root.addEventListener('change', (e) => {
     const el = /** @type {HTMLSelectElement} */ (e.target);
-    if (!setup || !el.dataset.key) return;
-    setup = moveSignal(setup, el.dataset.key, Number(el.value));
+    if (!setup || !(el.dataset.key || el.dataset.power)) return;
+    setup = el.dataset.power
+      ? setPower(setup, el.dataset.power, /** @type {'3v3' | '5v'} */ (el.value))
+      : moveSignal(setup, /** @type {string} */ (el.dataset.key), Number(el.value));
     keepDraft(setup);
     message = '';
     selectedPin = null;
