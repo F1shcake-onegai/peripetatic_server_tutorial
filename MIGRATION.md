@@ -192,7 +192,7 @@ The planner gives pins and greys out what doesn't fit by itself: GPIOs, power, t
 | `pip install -r requirements.txt` | `npm ci` |
 | `mkdocs serve` | `npm run dev`, then <http://localhost:4321/peripetatic_server_tutorial/> |
 | `mkdocs build` (to `site/`) | `npm run build` (to `dist/`) |
-| `mkdocs gh-deploy --force` | The workflow, on a push to a branch in its `branches:` list |
+| `mkdocs gh-deploy --force` | The workflow, on a push to a branch in its `branches:` list. It runs `npm test` first, and a failing test stops it. |
 | — | `npm test` (the setup planner) |
 
 ## Migrating back

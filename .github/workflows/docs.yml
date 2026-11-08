@@ -18,6 +18,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # A failing test stops the run: nothing is published
+      - run: npm test
       - run: npm run build
       # Publish dist/ to the gh-pages branch, as "mkdocs gh-deploy --force" did
       - name: Push to gh-pages
